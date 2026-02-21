@@ -1,0 +1,8 @@
+{
+  "name": "krida",
+  "version": "0.0.1",
+  "main": "index.js",
+  "author": "Elvis Dsouza",
+  "license": "MIT",
+  "description": "A playful experience development engine. Work in progress."
+}
