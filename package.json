@@ -5,16 +5,25 @@
   "author": "Elvis Dsouza",
   "license": "MIT",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
-  "scripts":{
-    "build": "tsc",
-    "prepublishOnly": "tsc"
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "tsc --noEmit && tsup"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
+    "tsup": "^8.5.1",
     "typescript": "^5.9.3"
   }
 }
