@@ -1,8 +1,20 @@
 {
   "name": "krida",
   "version": "0.0.1",
-  "main": "index.js",
+  "description": "An interactive experience development engine. Work in progress.",
   "author": "Elvis Dsouza",
   "license": "MIT",
-  "description": "A playful experience development engine. Work in progress."
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts":{
+    "build": "tsc",
+    "prepublishOnly": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.0",
+    "typescript": "^5.9.3"
+  }
 }
