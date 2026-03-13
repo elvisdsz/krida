@@ -25,5 +25,8 @@
     "@types/node": "^25.3.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "@mediapipe/tasks-vision": "^0.10.32"
   }
 }
