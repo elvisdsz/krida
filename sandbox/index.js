@@ -1,4 +1,4 @@
-import { engine, EngineLoop } from "../../dist/index.mjs";
+import { engine, EngineLoop } from "../dist/index.mjs";
 
 const WASM_PATH =
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm";
