@@ -107,6 +107,16 @@ export class EngineLoop {
         this._debugView = enabled;
     }
 
+    /** `true` if auto-clearing the canvas before each frame is enabled. */
+    get autoClear(): boolean {
+        return this._autoClear;
+    }
+
+    /** Toggle canvas auto-clear without restarting the loop. */
+    set autoClear(enabled: boolean) {
+        this._autoClear = enabled;
+    }
+
     /** `true` while the loop is running. */
     get isRunning(): boolean {
         return this.frameId !== null;
