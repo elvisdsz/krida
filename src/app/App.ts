@@ -1,20 +1,20 @@
-import { HandTrackerResult } from "../engine/Engine";
+import { TrackerResult } from "../engine/Engine";
 
 /**
  * Contract for all 2D canvas-based apps.
  *
  * Implement this interface to create a new interactive experience.
  * An app is registered with {@link EngineLoop} and receives a draw callback
- * every frame with up-to-date hand tracking results.
+ * every frame with up-to-date tracking results.
  *
  * @example
  * ```ts
  * class PointerApp implements App {
  *     name = "Pointer";
  *
- *     draw(ctx: CanvasRenderingContext2D, result: HandTrackerResult): void {
- *         if (result.landmarks.length === 0) return;
- *         const tip = result.landmarks[0][8]; // index finger tip
+ *     draw(ctx: CanvasRenderingContext2D, result: TrackerResult): void {
+ *         if (!result.hand || result.hand.landmarks.length === 0) return;
+ *         const tip = result.hand.landmarks[0][8]; // index finger tip
  *         ctx.beginPath();
  *         ctx.arc(tip.x * ctx.canvas.width, tip.y * ctx.canvas.height, 20, 0, Math.PI * 2);
  *         ctx.fill();
@@ -30,9 +30,9 @@ interface App {
      * Called once per rendered frame.
      *
      * @param ctx           2D canvas rendering context. Cleared before each call unless `autoClear` is disabled on the loop.
-     * @param trackerResult Latest hand tracking results for this frame.
+     * @param trackerResult Latest tracking results from the engine. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
      */
-    draw(ctx: CanvasRenderingContext2D, trackerResult: HandTrackerResult): void;
+    draw(ctx: CanvasRenderingContext2D, trackerResult: TrackerResult): void;
 }
 
 export default App;

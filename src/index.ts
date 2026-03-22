@@ -1,5 +1,5 @@
 export { Engine, EngineDefaults, engine } from "./engine/Engine";
-export type { EngineOptions, HandTrackerResult } from "./engine/Engine";
+export type { EngineOptions, HandTrackerResult, PoseTrackerResult, TrackerResult } from "./engine/Engine";
 
 export { EngineLoop } from "./engine/EngineLoop";
 export type { EngineLoopOptions } from "./engine/EngineLoop";

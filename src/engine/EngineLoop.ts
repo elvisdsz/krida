@@ -1,5 +1,5 @@
-import { DrawingUtils, HandLandmarker } from "@mediapipe/tasks-vision";
-import { Engine, HandTrackerResult } from "./Engine";
+import { DrawingUtils, HandLandmarker, NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
+import { Engine, HandTrackerResult, PoseTrackerResult, TrackerResult } from "./Engine";
 import App from "../app/App";
 
 export interface EngineLoopOptions {
@@ -9,7 +9,7 @@ export interface EngineLoopOptions {
      */
     targetFPS?: number | null;
     /**
-     * Render debug overlays: hand connections, landmark dots, and index labels.
+     * Render debug overlays: landmark connections, dots, and index labels.
      * Default: `false`
      */
     debugView?: boolean;
@@ -23,7 +23,7 @@ export interface EngineLoopOptions {
 /**
  * Framework-agnostic render loop.
  *
- * Drives a `requestAnimationFrame` loop, polls the {@link Engine} for hand
+ * Drives a `requestAnimationFrame` loop, polls the {@link Engine} for
  * tracking results each frame, and delegates drawing to a {@link App}.
  *
  * Usage:
@@ -97,11 +97,12 @@ export class EngineLoop {
         this._app = app;
     }
 
-    /** Toggle debug landmark overlay without restarting the loop. */
+    /** Returns `true` if debug view is enabled. */
     get debugView(): boolean {
         return this._debugView;
     }
-
+    
+    /** Toggle debug landmark overlay without restarting the loop. */
     set debugView(enabled: boolean) {
         this._debugView = enabled;
     }
@@ -124,17 +125,32 @@ export class EngineLoop {
         this.lastVideoTime = video.currentTime;
 
         const startTimeMs = performance.now();
-        const results = await this.engine.getResults(video, startTimeMs);
 
-        if (results) {
-            this._app.draw(ctx, results);
+        const trackerResult: TrackerResult = await this.engine.getTrackerResult(video, startTimeMs);
+
+        if (trackerResult.hand || trackerResult.pose) {
+            this._app.draw(ctx, trackerResult);
+
             if (this._debugView) {
-                this.drawDebugFrame(ctx, canvas, results);
+                this.drawDebugFrame(ctx, canvas, trackerResult);
             }
         }
     }
 
     private drawDebugFrame(
+        ctx: CanvasRenderingContext2D,
+        canvas: HTMLCanvasElement,
+        result: TrackerResult
+    ): void {
+        if (result.hand) {
+            this.drawDebugHandsFrame(ctx, canvas, result.hand);
+        }
+        if (result.pose) {
+            this.drawDebugPoseFrame(ctx, canvas, result.pose);
+        }
+    }
+
+    private drawDebugHandsFrame(
         ctx: CanvasRenderingContext2D,
         canvas: HTMLCanvasElement,
         result: HandTrackerResult
@@ -149,13 +165,40 @@ export class EngineLoop {
             });
             drawingUtils.drawLandmarks(landmarks, { color: "#FF0000", lineWidth: 2 });
 
-            for (let i = 0; i < landmarks.length; i++) {
-                const x = landmarks[i].x * canvas.width;
-                const y = landmarks[i].y * canvas.height;
-                ctx.fillStyle = "blue";
-                ctx.font = "12px Arial";
-                ctx.fillText(i.toString(), x, y);
-            }
+            this.drawLandmarkLabels(ctx, canvas, landmarks);
+        }
+    }
+
+    private drawDebugPoseFrame(
+        ctx: CanvasRenderingContext2D,
+        canvas: HTMLCanvasElement,
+        result: PoseTrackerResult
+    ): void {
+        this._drawingUtils ??= new DrawingUtils(ctx);
+        const drawingUtils = this._drawingUtils;
+
+        for (const landmarks of result.landmarks) {
+            drawingUtils.drawConnectors(landmarks, PoseLandmarker.POSE_CONNECTIONS, {
+                color: "#9755b1",
+                lineWidth: 5,
+            });
+            drawingUtils.drawLandmarks(landmarks, { color: "#3033d8", lineWidth: 2 });
+
+            this.drawLandmarkLabels(ctx, canvas, landmarks);
+        }
+    }
+
+    private drawLandmarkLabels(
+        ctx: CanvasRenderingContext2D,
+        canvas: HTMLCanvasElement,
+        landmarks: NormalizedLandmark[]
+    ): void {
+        ctx.fillStyle = "blue";
+        ctx.font = "12px Arial";
+        for (let i = 0; i < landmarks.length; i++) {
+            const x = landmarks[i].x * canvas.width;
+            const y = landmarks[i].y * canvas.height;
+            ctx.fillText(i.toString(), x, y);
         }
     }
 }

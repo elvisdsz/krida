@@ -1,15 +1,15 @@
 import { NormalizedLandmark } from "@mediapipe/tasks-vision";
 
 /**
- * Interface for per-hand landmark filters.
+ * Interface for landmark filters.
  *
- * A LandmarkFilter is a stateful object that processes one hand's worth of
- * landmarks (21 points) per frame. Each call to {@link filter} blends the
- * incoming raw landmarks with internal state and returns the filtered result.
+ * A LandmarkFilter is a stateful object that processes one subject's worth of
+ * landmarks per frame. Each call to {@link filter} blends the incoming raw
+ * landmarks with internal state and returns the filtered result.
  *
- * Implementations must be instantiated once **per tracked hand** — the caller
+ * Implementations must be instantiated once **per tracked subject** — the caller
  * (e.g. Engine) is responsible for managing the array of filters and resetting
- * them when a hand disappears.
+ * them when a subject disappears.
  */
 interface LandmarkFilter {
     /**
@@ -18,7 +18,7 @@ interface LandmarkFilter {
      */
     filter(raw: NormalizedLandmark[]): NormalizedLandmark[];
 
-    /** Reset internal state (e.g. when the tracked hand disappears). */
+    /** Reset internal state (e.g. when the tracked subject disappears). */
     reset(): void;
 }
 

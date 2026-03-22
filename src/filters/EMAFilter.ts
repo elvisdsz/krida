@@ -2,7 +2,7 @@ import { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import LandmarkFilter from "./LandmarkFilter";
 
 /**
- * Exponential Moving Average (EMA) filter for hand landmarks.
+ * Exponential Moving Average (EMA) filter for landmarks.
  *
  * Each landmark component (x, y, z) is independently smoothed:
  *

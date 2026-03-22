@@ -2,8 +2,10 @@ import { engine, EngineLoop } from "../dist/index.mjs";
 
 const WASM_PATH =
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm";
-const MODEL_PATH =
+const HAND_LANDMARKER_MODEL_PATH =
     "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
+const POSE_LANDMARKER_MODEL_PATH =
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
 
 const video  = document.getElementById("webcam");
 const canvas = document.getElementById("canvas");
@@ -14,8 +16,8 @@ const FINGERTIPS = [4, 8, 12, 16, 20];
 
 const pointerApp = {
     name: "Pointer",
-    draw(ctx, result) {
-        for (const hand of result.landmarks) {
+    draw(ctx, trackerResult) {
+        for (const hand of trackerResult.hand?.landmarks || []) {
             for (const i of FINGERTIPS) {
                 const { x, y } = hand[i];
                 ctx.beginPath();
@@ -39,8 +41,10 @@ async function main() {
     // 2. Load the hand-landmarker model
     await engine.init({
         handLandmarkerEnabled: true,
+        poseLandmarkerEnabled: true,
         visionTaskFilesetPath: WASM_PATH,
-        handLandmarkerModelPath: MODEL_PATH,
+        handLandmarkerModelPath: HAND_LANDMARKER_MODEL_PATH,
+        poseLandmarkerModelPath: POSE_LANDMARKER_MODEL_PATH
     });
 
     status.textContent = "Ready - show your hand!";
