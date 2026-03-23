@@ -35,7 +35,8 @@ export interface EngineLoopOptions {
  * loop.start(videoElement, canvasElement, myApp);
  *
  * // Later:
- * loop.stop();
+ * loop.destroy();
+ * engine.destroy();
  * ```
  */
 export class EngineLoop {
@@ -90,6 +91,17 @@ export class EngineLoop {
             this.frameId = null;
         }
         this._drawingUtils = null;
+    }
+
+    /**
+     * Release loop-owned resources.
+     * Does not destroy the engine so shared engine instances can outlive the loop.
+     */
+    destroy(): void {
+        this.stop();
+        this._app = null;
+        this.lastFrameTime = 0;
+        this.lastVideoTime = -1;
     }
 
     /** Swap the active app without restarting the loop. */

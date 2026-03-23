@@ -1,4 +1,4 @@
-import { engine, EngineLoop } from "../dist/index.mjs";
+import { EngineRuntime } from "../dist/index.mjs";
 
 const WASM_PATH =
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm";
@@ -29,30 +29,26 @@ const pointerApp = {
     },
 };
 
+const runtime = new EngineRuntime();
+
 async function main() {
-    // 1. Open webcam
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    video.srcObject = stream;
-    await new Promise(resolve => video.addEventListener("loadeddata", resolve, { once: true }));
-
-    canvas.width  = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    // 2. Load the hand-landmarker model
-    await engine.init({
-        handLandmarkerEnabled: true,
-        poseLandmarkerEnabled: true,
-        visionTaskFilesetPath: WASM_PATH,
-        handLandmarkerModelPath: HAND_LANDMARKER_MODEL_PATH,
-        poseLandmarkerModelPath: POSE_LANDMARKER_MODEL_PATH
+    await runtime.start({
+        video,
+        canvas,
+        app: pointerApp,
+        engineOptions: {
+            handLandmarkerEnabled: true,
+            poseLandmarkerEnabled: true,
+            visionTaskFilesetPath: WASM_PATH,
+            handLandmarkerModelPath: HAND_LANDMARKER_MODEL_PATH,
+            poseLandmarkerModelPath: POSE_LANDMARKER_MODEL_PATH,
+        },
+        loopOptions: {
+            debugView: true,
+        },
     });
 
     status.textContent = "Ready - show your hand!";
-
-    // 3. Start the render loop
-    //    debugView draws the green skeleton + red landmark dots automatically
-    const loop = new EngineLoop(engine, { debugView: true });
-    loop.start(video, canvas, pointerApp);
 }
 
 main().catch(err => {

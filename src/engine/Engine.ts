@@ -81,6 +81,24 @@ export class Engine {
 
     private smoothingAlpha: number = EngineDefaults.smoothingAlpha;
 
+    private resetState = (): void => {
+        this.lastVideoTime = -1;
+        this.lastPoseVideoTime = -1;
+        this.lastHandResult = null;
+        this.lastPoseResult = null;
+        this.handLandmarkFilters.length = 0;
+        this.poseLandmarkFilters.length = 0;
+    };
+
+    private closeTask = (name: string, closeFn?: () => void): void => {
+        if (!closeFn) return;
+        try {
+            closeFn();
+        } catch (error) {
+            console.warn(`Engine: failed to close ${name}.`, error);
+        }
+    };
+
     /**
      * Initialize the engine and load the requested MediaPipe models.
      * Must be called before calling {@link getTrackerResult}.
@@ -91,25 +109,52 @@ export class Engine {
             console.warn("Engine is already initialized. Ignoring duplicate init call.");
             return;
         }
+
         this.initialized = true;
+        this.resetState();
 
         this.smoothingAlpha = options.smoothingAlpha ?? EngineDefaults.smoothingAlpha;
 
-        const vision = await FilesetResolver.forVisionTasks(
-            options.visionTaskFilesetPath ?? EngineDefaults.visionTaskFilesetPath
-        );
+        try {
+            const vision = await FilesetResolver.forVisionTasks(
+                options.visionTaskFilesetPath ?? EngineDefaults.visionTaskFilesetPath
+            );
 
-        if (options.handLandmarkerEnabled) {
-            await this.loadHandLandmarker(vision, options);
-        }
+            if (options.handLandmarkerEnabled) {
+                await this.loadHandLandmarker(vision, options);
+            }
 
-        if (options.gestureRecognizerEnabled) {
-            await this.loadGestureRecognizer(vision, options);
-        }
+            if (options.gestureRecognizerEnabled) {
+                await this.loadGestureRecognizer(vision, options);
+            }
 
-        if (options.poseLandmarkerEnabled) {
-            await this.loadPoseLandmarker(vision, options);
+            if (options.poseLandmarkerEnabled) {
+                await this.loadPoseLandmarker(vision, options);
+            }
+        } catch (error) {
+            this.destroy();
+            throw error;
         }
+    };
+
+    /**
+     * Release all engine-owned resources and reset state.
+     * Safe to call multiple times.
+     */
+    destroy = (): void => {
+        const handLandmarker = this.handLandmarker;
+        const poseLandmarker = this.poseLandmarker;
+        const gestureRecognizer = this.gestureRecognizer;
+
+        this.handLandmarker = null;
+        this.poseLandmarker = null;
+        this.gestureRecognizer = null;
+        this.initialized = false;
+        this.resetState();
+
+        this.closeTask("hand landmarker", handLandmarker?.close?.bind(handLandmarker));
+        this.closeTask("pose landmarker", poseLandmarker?.close?.bind(poseLandmarker));
+        this.closeTask("gesture recognizer", gestureRecognizer?.close?.bind(gestureRecognizer));
     };
 
     private loadHandLandmarker = async (visionTaskFileset: any, options: EngineOptions): Promise<void> => {
