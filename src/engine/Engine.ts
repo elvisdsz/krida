@@ -5,8 +5,6 @@ import {
     HandLandmarkerResult,
     PoseLandmarkerResult,
     NormalizedLandmark,
-    GestureRecognizer,
-    GestureRecognizerResult,
 } from "@mediapipe/tasks-vision";
 import LandmarkFilter from "../filters/LandmarkFilter";
 import EMAFilter from "../filters/EMAFilter";
@@ -34,8 +32,6 @@ export const EngineDefaults = {
     handLandmarkerModelPath: "/models/hand_landmarker.task",
     /** Path to the pose landmarker model file. */
     poseLandmarkerModelPath: "/models/pose_landmarker.task",
-    /** Path to the gesture recognizer model file. */
-    gestureRecognizerModelPath: "/models/gesture_recognizer.task",
     /** Maximum number of hands to detect. */
     numHands: 2,
 } as const satisfies Partial<EngineOptions>;
@@ -47,14 +43,10 @@ export interface EngineOptions {
     handLandmarkerEnabled?: boolean;
     /** Enable the pose landmarker. */
     poseLandmarkerEnabled?: boolean;
-    /** Enable the gesture recognizer. */
-    gestureRecognizerEnabled?: boolean;
     /** Path to the hand landmarker model file (.task). Default: {@link EngineDefaults.handLandmarkerModelPath} */
     handLandmarkerModelPath?: string;
     /** Path to the pose landmarker model file (.task). Default: {@link EngineDefaults.poseLandmarkerModelPath} */
     poseLandmarkerModelPath?: string;
-    /** Path to the gesture recognizer model file (.task). Default: {@link EngineDefaults.gestureRecognizerModelPath} */
-    gestureRecognizerModelPath?: string;
     /** EMA smoothing factor for landmarks. (0, 1]. Lower = smoother. Default: {@link EngineDefaults.smoothingAlpha} */
     smoothingAlpha?: number;
     /** Maximum number of hands to detect (1 or 2). Default: {@link EngineDefaults.numHands} */
@@ -67,7 +59,6 @@ export class Engine {
 
     private handLandmarker: HandLandmarker | null = null;
     private poseLandmarker: PoseLandmarker | null = null;
-    private gestureRecognizer: GestureRecognizer | null = null;
 
     private lastVideoTime: number = -1;
     private lastPoseVideoTime: number = -1;
@@ -124,10 +115,6 @@ export class Engine {
                 await this.loadHandLandmarker(vision, options);
             }
 
-            if (options.gestureRecognizerEnabled) {
-                await this.loadGestureRecognizer(vision, options);
-            }
-
             if (options.poseLandmarkerEnabled) {
                 await this.loadPoseLandmarker(vision, options);
             }
@@ -144,17 +131,14 @@ export class Engine {
     destroy = (): void => {
         const handLandmarker = this.handLandmarker;
         const poseLandmarker = this.poseLandmarker;
-        const gestureRecognizer = this.gestureRecognizer;
 
         this.handLandmarker = null;
         this.poseLandmarker = null;
-        this.gestureRecognizer = null;
         this.initialized = false;
         this.resetState();
 
         this.closeTask("hand landmarker", handLandmarker?.close?.bind(handLandmarker));
         this.closeTask("pose landmarker", poseLandmarker?.close?.bind(poseLandmarker));
-        this.closeTask("gesture recognizer", gestureRecognizer?.close?.bind(gestureRecognizer));
     };
 
     private loadHandLandmarker = async (visionTaskFileset: any, options: EngineOptions): Promise<void> => {
@@ -176,18 +160,6 @@ export class Engine {
             {
                 baseOptions: {
                     modelAssetPath: options.poseLandmarkerModelPath ?? EngineDefaults.poseLandmarkerModelPath,
-                },
-                runningMode: "VIDEO",
-            }
-        );
-    };
-
-    private loadGestureRecognizer = async (visionTaskFileset: any, options: EngineOptions): Promise<void> => {
-        this.gestureRecognizer = await GestureRecognizer.createFromOptions(
-            visionTaskFileset,
-            {
-                baseOptions: {
-                    modelAssetPath: options.gestureRecognizerModelPath ?? EngineDefaults.gestureRecognizerModelPath,
                 },
                 runningMode: "VIDEO",
             }
@@ -278,23 +250,6 @@ export class Engine {
         } as PoseTrackerResult;
 
         return this.lastPoseResult;
-    };
-
-    /**
-     * Recognize gestures for the current video frame.
-     * Results are cached per video frame; calling multiple times with the same frame is free.
-     * 
-     * @param video The video element containing the current frame to process.
-     * @param startTimeMs The timestamp (in milliseconds) corresponding to the current video frame. This should be consistent across calls for the same frame to ensure proper caching. Typically, this would be `video.currentTime * 1000`.
-     *
-     * @returns Recognized gestures, or `null` if the model is not yet loaded.
-     */
-    private getGestures = async (video: HTMLVideoElement, startTimeMs: number): Promise<GestureRecognizerResult | null> => {
-        if (this.gestureRecognizer == null) {
-            console.warn("Engine: Gesture Recognizer model not loaded. Call init() with gestureRecognizerEnabled: true.");
-            return null;
-        }
-        return this.gestureRecognizer.recognizeForVideo(video, startTimeMs);
     };
 
     /**
