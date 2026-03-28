@@ -1,5 +1,5 @@
 # Krida
 
-An interactive expeirence development engine.
+An interactive experience development engine.
 
 Work in progress.
