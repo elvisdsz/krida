@@ -270,7 +270,3 @@ export class VisionEngine {
         return rawLandmarks.map((landmarks, i) => landmarkFilters[i].filter(landmarks));
     }
 }
-
-/** Convenience singleton. For multiple independent instances, instantiate {@link VisionEngine} directly. */
-export const visionEngine = new VisionEngine();
-export default visionEngine;

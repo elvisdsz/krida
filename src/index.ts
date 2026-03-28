@@ -1,4 +1,4 @@
-export { VisionEngine, VisionEngineDefaults, visionEngine } from "./engine/VisionEngine";
+export { VisionEngine, VisionEngineDefaults } from "./engine/VisionEngine";
 export type { VisionEngineOptions, HandTrackerResult, PoseTrackerResult, TrackerResult } from "./engine/VisionEngine";
 
 export { EngineLoop } from "./engine/EngineLoop";
