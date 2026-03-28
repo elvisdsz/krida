@@ -55,30 +55,30 @@ export interface VisionEngineOptions {
 
 export class VisionEngine {
 
-    private initialized: boolean = false;
+    private _initialized: boolean = false;
 
-    private handLandmarker: HandLandmarker | null = null;
-    private poseLandmarker: PoseLandmarker | null = null;
+    private _handLandmarker: HandLandmarker | null = null;
+    private _poseLandmarker: PoseLandmarker | null = null;
 
-    private lastVideoTime: number = -1;
-    private lastPoseVideoTime: number = -1;
-    private lastHandResult: HandTrackerResult | null = null;
-    private lastPoseResult: PoseTrackerResult | null = null;
+    private _lastVideoTime: number = -1;
+    private _lastPoseVideoTime: number = -1;
+    private _lastHandResult: HandTrackerResult | null = null;
+    private _lastPoseResult: PoseTrackerResult | null = null;
 
     /** Per-hand landmark filters (index matches hand index in results). */
-    private handLandmarkFilters: LandmarkFilter[] = [];
+    private _handLandmarkFilters: LandmarkFilter[] = [];
     /** Per-pose landmark filters (index matches pose index in results). */
-    private poseLandmarkFilters: LandmarkFilter[] = [];
+    private _poseLandmarkFilters: LandmarkFilter[] = [];
 
-    private smoothingAlpha: number = VisionEngineDefaults.smoothingAlpha;
+    private _smoothingAlpha: number = VisionEngineDefaults.smoothingAlpha;
 
     private resetState = (): void => {
-        this.lastVideoTime = -1;
-        this.lastPoseVideoTime = -1;
-        this.lastHandResult = null;
-        this.lastPoseResult = null;
-        this.handLandmarkFilters.length = 0;
-        this.poseLandmarkFilters.length = 0;
+        this._lastVideoTime = -1;
+        this._lastPoseVideoTime = -1;
+        this._lastHandResult = null;
+        this._lastPoseResult = null;
+        this._handLandmarkFilters.length = 0;
+        this._poseLandmarkFilters.length = 0;
     };
 
     private closeTask = (name: string, closeFn?: () => void): void => {
@@ -96,15 +96,15 @@ export class VisionEngine {
      */
     init = async (options: VisionEngineOptions): Promise<void> => {
 
-        if (this.initialized) {
+        if (this._initialized) {
             console.warn("VisionEngine is already initialized. Ignoring duplicate init call.");
             return;
         }
 
-        this.initialized = true;
+        this._initialized = true;
         this.resetState();
 
-        this.smoothingAlpha = options.smoothingAlpha ?? VisionEngineDefaults.smoothingAlpha;
+        this._smoothingAlpha = options.smoothingAlpha ?? VisionEngineDefaults.smoothingAlpha;
 
         try {
             const vision = await FilesetResolver.forVisionTasks(
@@ -129,12 +129,12 @@ export class VisionEngine {
      * Safe to call multiple times.
      */
     destroy = (): void => {
-        const handLandmarker = this.handLandmarker;
-        const poseLandmarker = this.poseLandmarker;
+        const handLandmarker = this._handLandmarker;
+        const poseLandmarker = this._poseLandmarker;
 
-        this.handLandmarker = null;
-        this.poseLandmarker = null;
-        this.initialized = false;
+        this._handLandmarker = null;
+        this._poseLandmarker = null;
+        this._initialized = false;
         this.resetState();
 
         this.closeTask("hand landmarker", handLandmarker?.close?.bind(handLandmarker));
@@ -142,7 +142,7 @@ export class VisionEngine {
     };
 
     private loadHandLandmarker = async (visionTaskFileset: any, options: VisionEngineOptions): Promise<void> => {
-        this.handLandmarker = await HandLandmarker.createFromOptions(
+        this._handLandmarker = await HandLandmarker.createFromOptions(
             visionTaskFileset,
             {
                 baseOptions: {
@@ -155,7 +155,7 @@ export class VisionEngine {
     };
 
     private loadPoseLandmarker = async (visionTaskFileset: any, options: VisionEngineOptions): Promise<void> => {
-        this.poseLandmarker = await PoseLandmarker.createFromOptions(
+        this._poseLandmarker = await PoseLandmarker.createFromOptions(
             visionTaskFileset,
             {
                 baseOptions: {
@@ -198,26 +198,26 @@ export class VisionEngine {
      * @returns Detected landmarks (smoothed), or `null` if the model is not yet loaded.
      */
     private getHandResult = async (video: HTMLVideoElement, startTimeMs: number): Promise<HandTrackerResult | null> => {
-        if (this.handLandmarker == null) {
+        if (this._handLandmarker == null) {
             return null;
         }
 
-        if (this.lastVideoTime === video.currentTime) {
-            return this.lastHandResult;
+        if (this._lastVideoTime === video.currentTime) {
+            return this._lastHandResult;
         }
-        this.lastVideoTime = video.currentTime;
+        this._lastVideoTime = video.currentTime;
 
-        const result = this.handLandmarker.detectForVideo(video, startTimeMs);
+        const result = this._handLandmarker.detectForVideo(video, startTimeMs);
 
-        const smoothedLandmarks = this.filterLandmarks(result.landmarks, this.handLandmarkFilters);
+        const smoothedLandmarks = this.filterLandmarks(result.landmarks, this._handLandmarkFilters);
 
-        this.lastHandResult = {
+        this._lastHandResult = {
             ...result,
             landmarks: smoothedLandmarks,
             startTimeMs,
         } as HandTrackerResult;
 
-        return this.lastHandResult;
+        return this._lastHandResult;
     };
 
     /**
@@ -230,26 +230,26 @@ export class VisionEngine {
      * @returns Detected landmarks (smoothed), or `null` if the model is not yet loaded.
      */
     private getPoseResult = async (video: HTMLVideoElement, startTimeMs: number): Promise<PoseTrackerResult | null> => {
-        if (this.poseLandmarker == null) {
+        if (this._poseLandmarker == null) {
             return null;
         }
 
-        if (this.lastPoseVideoTime === video.currentTime) {
-            return this.lastPoseResult;
+        if (this._lastPoseVideoTime === video.currentTime) {
+            return this._lastPoseResult;
         }
-        this.lastPoseVideoTime = video.currentTime;
+        this._lastPoseVideoTime = video.currentTime;
 
-        const result = this.poseLandmarker.detectForVideo(video, startTimeMs);
+        const result = this._poseLandmarker.detectForVideo(video, startTimeMs);
 
-        const smoothedLandmarks = this.filterLandmarks(result.landmarks, this.poseLandmarkFilters);
+        const smoothedLandmarks = this.filterLandmarks(result.landmarks, this._poseLandmarkFilters);
 
-        this.lastPoseResult = {
+        this._lastPoseResult = {
             ...result,
             landmarks: smoothedLandmarks,
             startTimeMs,
         } as PoseTrackerResult;
 
-        return this.lastPoseResult;
+        return this._lastPoseResult;
     };
 
     /**
@@ -260,7 +260,7 @@ export class VisionEngine {
         const count = rawLandmarks.length;
 
         while (landmarkFilters.length < count) {
-            landmarkFilters.push(new EMAFilter(this.smoothingAlpha));
+            landmarkFilters.push(new EMAFilter(this._smoothingAlpha));
         }
 
         for (let i = count; i < landmarkFilters.length; i++) {

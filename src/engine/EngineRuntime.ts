@@ -44,22 +44,22 @@ export interface EngineRuntimeStartOptions {
 export class EngineRuntime {
 
     private readonly _visionEngine: VisionEngine;
-    private readonly autoCleanupOnPageLifecycle: boolean;
+    private readonly _autoCleanupOnPageLifecycle: boolean;
 
-    private renderLoop: RenderLoop | null = null;
-    private video: HTMLVideoElement | null = null;
-    private stream: MediaStream | null = null;
-    private startupAbortController: AbortController | null = null;
+    private _renderLoop: RenderLoop | null = null;
+    private _video: HTMLVideoElement | null = null;
+    private _stream: MediaStream | null = null;
+    private _startupAbortController: AbortController | null = null;
 
-    private lifecycleListenersRegistered: boolean = false;
+    private _lifecycleListenersRegistered: boolean = false;
 
-    private readonly onPageLifecycle = (): void => {
+    private readonly _onPageLifecycle = (): void => {
         this.destroy();
     };
 
     constructor(options: EngineRuntimeOptions = {}) {
         this._visionEngine = options.visionEngine ?? new VisionEngine();
-        this.autoCleanupOnPageLifecycle = options.autoCleanupOnPageLifecycle ?? true;
+        this._autoCleanupOnPageLifecycle = options.autoCleanupOnPageLifecycle ?? true;
     }
 
     /** Access to the underlying VisionEngine instance for advanced scenarios. */
@@ -69,7 +69,7 @@ export class EngineRuntime {
 
     /** Returns true when a loop exists and is currently running. */
     get isRunning(): boolean {
-        return this.renderLoop?.isRunning ?? false;
+        return this._renderLoop?.isRunning ?? false;
     }
 
     /**
@@ -80,38 +80,38 @@ export class EngineRuntime {
         this.destroy();
 
         const startupAbortController = new AbortController();
-        this.startupAbortController = startupAbortController;
+        this._startupAbortController = startupAbortController;
         const { signal } = startupAbortController;
 
-        this.video = options.video;
+        this._video = options.video;
 
-        if (this.autoCleanupOnPageLifecycle) {
+        if (this._autoCleanupOnPageLifecycle) {
             this.registerLifecycleListeners();
         }
 
         try {
-            this.stream = await navigator.mediaDevices.getUserMedia(
+            this._stream = await navigator.mediaDevices.getUserMedia(
                 options.mediaStreamConstraints ?? { video: true }
             );
             this.throwIfAborted(signal);
 
-            this.video.srcObject = this.stream;
-            await this.waitForVideoData(this.video, signal);
+            this._video.srcObject = this._stream;
+            await this.waitForVideoData(this._video, signal);
 
-            options.canvas.width = this.video.videoWidth;
-            options.canvas.height = this.video.videoHeight;
+            options.canvas.width = this._video.videoWidth;
+            options.canvas.height = this._video.videoHeight;
 
             await this._visionEngine.init(options.visionEngineOptions);
             this.throwIfAborted(signal);
 
-            this.renderLoop = new RenderLoop(this._visionEngine, options.renderLoopOptions);
-            this.renderLoop.start(this.video, options.canvas, options.app);
+            this._renderLoop = new RenderLoop(this._visionEngine, options.renderLoopOptions);
+            this._renderLoop.start(this._video, options.canvas, options.app);
         } catch (error) {
             this.destroy();
             throw error;
         } finally {
-            if (this.startupAbortController === startupAbortController) {
-                this.startupAbortController = null;
+            if (this._startupAbortController === startupAbortController) {
+                this._startupAbortController = null;
             }
         }
     };
@@ -121,26 +121,26 @@ export class EngineRuntime {
      * Safe to call multiple times.
      */
     destroy = (): void => {
-        this.startupAbortController?.abort();
-        this.startupAbortController = null;
+        this._startupAbortController?.abort();
+        this._startupAbortController = null;
 
-        this.renderLoop?.destroy();
-        this.renderLoop = null;
+        this._renderLoop?.destroy();
+        this._renderLoop = null;
 
         this._visionEngine.destroy();
 
-        if (this.stream) {
-            for (const track of this.stream.getTracks()) {
+        if (this._stream) {
+            for (const track of this._stream.getTracks()) {
                 track.stop();
             }
-            this.stream = null;
+            this._stream = null;
         }
 
-        if (this.video && this.video.srcObject) {
-            this.video.srcObject = null;
+        if (this._video && this._video.srcObject) {
+            this._video.srcObject = null;
         }
 
-        this.video = null;
+        this._video = null;
 
         this.unregisterLifecycleListeners();
     };
@@ -185,23 +185,23 @@ export class EngineRuntime {
     }
 
     private registerLifecycleListeners(): void {
-        if (this.lifecycleListenersRegistered) {
+        if (this._lifecycleListenersRegistered) {
             return;
         }
 
-        window.addEventListener("pagehide", this.onPageLifecycle);
-        window.addEventListener("beforeunload", this.onPageLifecycle);
-        this.lifecycleListenersRegistered = true;
+        window.addEventListener("pagehide", this._onPageLifecycle);
+        window.addEventListener("beforeunload", this._onPageLifecycle);
+        this._lifecycleListenersRegistered = true;
     }
 
     private unregisterLifecycleListeners(): void {
-        if (!this.lifecycleListenersRegistered) {
+        if (!this._lifecycleListenersRegistered) {
             return;
         }
 
-        window.removeEventListener("pagehide", this.onPageLifecycle);
-        window.removeEventListener("beforeunload", this.onPageLifecycle);
-        this.lifecycleListenersRegistered = false;
+        window.removeEventListener("pagehide", this._onPageLifecycle);
+        window.removeEventListener("beforeunload", this._onPageLifecycle);
+        this._lifecycleListenersRegistered = false;
     }
 }
 

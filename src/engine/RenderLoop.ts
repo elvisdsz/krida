@@ -41,20 +41,20 @@ export interface RenderLoopOptions {
  */
 export class RenderLoop {
 
-    private frameId: number | null = null;
-    private lastFrameTime: number = 0;
-    private lastVideoTime: number = -1;
-    private readonly frameInterval: number | null;
+    private _frameId: number | null = null;
+    private _lastFrameTime: number = 0;
+    private _lastVideoTime: number = -1;
+    private readonly _frameInterval: number | null;
     private _debugView: boolean;
     private _autoClear: boolean;
     private _drawingUtils: DrawingUtils | null = null;
     private _app: App | null = null;
-    private readonly visionEngine: VisionEngine;
+    private readonly _visionEngine: VisionEngine;
 
     constructor(visionEngine: VisionEngine, options: RenderLoopOptions = {}) {
-        this.visionEngine = visionEngine;
+        this._visionEngine = visionEngine;
         const targetFPS = options.targetFPS !== undefined ? options.targetFPS : 30;
-        this.frameInterval = targetFPS !== null ? 1000 / targetFPS : null;
+        this._frameInterval = targetFPS !== null ? 1000 / targetFPS : null;
         this._debugView = options.debugView ?? false;
         this._autoClear = options.autoClear ?? true;
     }
@@ -70,25 +70,25 @@ export class RenderLoop {
     start(video: HTMLVideoElement, canvas: HTMLCanvasElement, app: App): void {
         this.stop();
         this._app = app;
-        this.lastVideoTime = -1;
+        this._lastVideoTime = -1;
 
         const drawFrame = async (currentTime: number) => {
-            const delta = currentTime - this.lastFrameTime;
-            if (this.frameInterval == null || delta >= this.frameInterval) {
+            const delta = currentTime - this._lastFrameTime;
+            if (this._frameInterval == null || delta >= this._frameInterval) {
                 await this.renderFrame(video, canvas);
-                this.lastFrameTime = currentTime;
+                this._lastFrameTime = currentTime;
             }
-            this.frameId = requestAnimationFrame(drawFrame);
+            this._frameId = requestAnimationFrame(drawFrame);
         };
 
-        this.frameId = requestAnimationFrame(drawFrame);
+        this._frameId = requestAnimationFrame(drawFrame);
     }
 
     /** Stop the render loop. Safe to call when already stopped. */
     stop(): void {
-        if (this.frameId !== null) {
-            cancelAnimationFrame(this.frameId);
-            this.frameId = null;
+        if (this._frameId !== null) {
+            cancelAnimationFrame(this._frameId);
+            this._frameId = null;
         }
         this._drawingUtils = null;
     }
@@ -100,8 +100,8 @@ export class RenderLoop {
     destroy(): void {
         this.stop();
         this._app = null;
-        this.lastFrameTime = 0;
-        this.lastVideoTime = -1;
+        this._lastFrameTime = 0;
+        this._lastVideoTime = -1;
     }
 
     /** Swap the active app without restarting the loop. */
@@ -131,7 +131,7 @@ export class RenderLoop {
 
     /** `true` while the loop is running. */
     get isRunning(): boolean {
-        return this.frameId !== null;
+        return this._frameId !== null;
     }
 
     // ── Private helpers ──────────────────────────────────────────────────────
@@ -143,12 +143,12 @@ export class RenderLoop {
         if (this._autoClear) ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // Skip if the video hasn't advanced to a new frame
-        if (this.lastVideoTime === video.currentTime) return;
-        this.lastVideoTime = video.currentTime;
+        if (this._lastVideoTime === video.currentTime) return;
+        this._lastVideoTime = video.currentTime;
 
         const startTimeMs = performance.now();
 
-        const trackerResult: TrackerResult = await this.visionEngine.getTrackerResult(video, startTimeMs);
+        const trackerResult: TrackerResult = await this._visionEngine.getTrackerResult(video, startTimeMs);
 
         if (trackerResult.hand || trackerResult.pose) {
             this._app.draw(ctx, trackerResult);

@@ -16,38 +16,38 @@ class EMAFilter implements LandmarkFilter {
 
     private static readonly DEFAULT_ALPHA = 0.45;
 
-    private previous: NormalizedLandmark[] | null = null;
-    private readonly alpha: number;
+    private _previous: NormalizedLandmark[] | null = null;
+    private readonly _alpha: number;
 
     constructor(alpha: number = EMAFilter.DEFAULT_ALPHA) {
         if (alpha <= 0 || alpha > 1) {
             throw new RangeError(`EMAFilter alpha must be in (0, 1]. Received: ${alpha}`);
         }
-        this.alpha = alpha;
+        this._alpha = alpha;
     }
 
     filter(raw: NormalizedLandmark[]): NormalizedLandmark[] {
-        if (this.previous === null || this.previous.length !== raw.length) {
+        if (this._previous === null || this._previous.length !== raw.length) {
             // First frame or landmark count changed — seed with raw values
-            this.previous = raw.map(l => ({ ...l }));
-            return this.previous;
+            this._previous = raw.map(l => ({ ...l }));
+            return this._previous;
         }
 
-        const a = this.alpha;
+        const a = this._alpha;
         const oneMinusA = 1 - a;
 
-        this.previous = raw.map((l, i) => ({
-            x: a * l.x + oneMinusA * this.previous![i].x,
-            y: a * l.y + oneMinusA * this.previous![i].y,
-            z: a * l.z + oneMinusA * this.previous![i].z,
-            visibility: a * (l.visibility ?? 0) + oneMinusA * (this.previous![i].visibility ?? 0),
+        this._previous = raw.map((l, i) => ({
+            x: a * l.x + oneMinusA * this._previous![i].x,
+            y: a * l.y + oneMinusA * this._previous![i].y,
+            z: a * l.z + oneMinusA * this._previous![i].z,
+            visibility: a * (l.visibility ?? 0) + oneMinusA * (this._previous![i].visibility ?? 0),
         }));
 
-        return this.previous;
+        return this._previous;
     }
 
     reset(): void {
-        this.previous = null;
+        this._previous = null;
     }
 }
 
