@@ -1,5 +1,5 @@
 import { DrawingUtils, HandLandmarker, NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
-import { Engine, HandTrackerResult, PoseTrackerResult, TrackerResult } from "./Engine";
+import { VisionEngine, HandTrackerResult, PoseTrackerResult, TrackerResult } from "./VisionEngine";
 import App from "../app/App";
 
 export interface EngineLoopOptions {
@@ -23,20 +23,20 @@ export interface EngineLoopOptions {
 /**
  * Framework-agnostic render loop.
  *
- * Drives a `requestAnimationFrame` loop, polls the {@link Engine} for
+ * Drives a `requestAnimationFrame` loop, polls the {@link VisionEngine} for
  * tracking results each frame, and delegates drawing to a {@link App}.
  *
  * Usage:
  * ```ts
- * const engine = new Engine();
- * await engine.init({ handLandmarkerEnabled: true, ... });
+ * const visionEngine = new VisionEngine();
+ * await visionEngine.init({ handLandmarkerEnabled: true, ... });
  *
- * const loop = new EngineLoop(engine, { targetFPS: 30 });
+ * const loop = new EngineLoop(visionEngine, { targetFPS: 30 });
  * loop.start(videoElement, canvasElement, myApp);
  *
  * // Later:
  * loop.destroy();
- * engine.destroy();
+ * visionEngine.destroy();
  * ```
  */
 export class EngineLoop {
@@ -49,10 +49,10 @@ export class EngineLoop {
     private _autoClear: boolean;
     private _drawingUtils: DrawingUtils | null = null;
     private _app: App | null = null;
-    private readonly engine: Engine;
+    private readonly visionEngine: VisionEngine;
 
-    constructor(engine: Engine, options: EngineLoopOptions = {}) {
-        this.engine = engine;
+    constructor(visionEngine: VisionEngine, options: EngineLoopOptions = {}) {
+        this.visionEngine = visionEngine;
         const targetFPS = options.targetFPS !== undefined ? options.targetFPS : 30;
         this.frameInterval = targetFPS !== null ? 1000 / targetFPS : null;
         this._debugView = options.debugView ?? false;
@@ -148,7 +148,7 @@ export class EngineLoop {
 
         const startTimeMs = performance.now();
 
-        const trackerResult: TrackerResult = await this.engine.getTrackerResult(video, startTimeMs);
+        const trackerResult: TrackerResult = await this.visionEngine.getTrackerResult(video, startTimeMs);
 
         if (trackerResult.hand || trackerResult.pose) {
             this._app.draw(ctx, trackerResult);

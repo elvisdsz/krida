@@ -36,7 +36,7 @@ async function main() {
         video,
         canvas,
         app: pointerApp,
-        engineOptions: {
+        visionEngineOptions: {
             handLandmarkerEnabled: true,
             poseLandmarkerEnabled: true,
             visionTaskFilesetPath: WASM_PATH,

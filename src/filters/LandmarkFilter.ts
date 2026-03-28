@@ -8,7 +8,7 @@ import { NormalizedLandmark } from "@mediapipe/tasks-vision";
  * landmarks with internal state and returns the filtered result.
  *
  * Implementations must be instantiated once **per tracked subject** — the caller
- * (e.g. Engine) is responsible for managing the array of filters and resetting
+ * (e.g. VisionEngine) is responsible for managing the array of filters and resetting
  * them when a subject disappears.
  */
 interface LandmarkFilter {

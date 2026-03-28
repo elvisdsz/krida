@@ -1,10 +1,10 @@
 import type App from "../app/App";
-import { Engine, type EngineOptions } from "./Engine";
+import { VisionEngine, type VisionEngineOptions } from "./VisionEngine";
 import { EngineLoop, type EngineLoopOptions } from "./EngineLoop";
 
 export interface EngineRuntimeOptions {
-    /** Existing engine instance to use. Defaults to a new Engine instance. Note: EngineRuntime takes ownership and will call destroy() on it during cleanup. */
-    engine?: Engine;
+    /** Existing VisionEngine instance to use. Defaults to a new VisionEngine instance. Note: EngineRuntime takes ownership and will call destroy() on it during cleanup. */
+    visionEngine?: VisionEngine;
     /** Automatically cleanup when the page is hidden or unloaded. Default: true. */
     autoCleanupOnPageLifecycle?: boolean;
 }
@@ -16,8 +16,8 @@ export interface EngineRuntimeStartOptions {
     canvas: HTMLCanvasElement;
     /** App that receives per-frame tracker results. */
     app: App;
-    /** Engine initialization options. */
-    engineOptions: EngineOptions;
+    /** VisionEngine initialization options. */
+    visionEngineOptions: VisionEngineOptions;
     /** Loop options used to construct EngineLoop. */
     loopOptions?: EngineLoopOptions;
     /** Media constraints for getUserMedia. Default: { video: true }. */
@@ -25,7 +25,7 @@ export interface EngineRuntimeStartOptions {
 }
 
 /**
- * High-level runtime that manages camera, Engine, and EngineLoop lifecycles.
+ * High-level runtime that manages camera, VisionEngine, and EngineLoop lifecycles.
  *
  * Usage:
  * ```ts
@@ -34,7 +34,7 @@ export interface EngineRuntimeStartOptions {
  *   video,
  *   canvas,
  *   app,
- *   engineOptions: { handLandmarkerEnabled: true, poseLandmarkerEnabled: true },
+ *   visionEngineOptions: { handLandmarkerEnabled: true, poseLandmarkerEnabled: true },
  * });
  *
  * // Later:
@@ -43,7 +43,7 @@ export interface EngineRuntimeStartOptions {
  */
 export class EngineRuntime {
 
-    private readonly engine: Engine;
+    private readonly _visionEngine: VisionEngine;
     private readonly autoCleanupOnPageLifecycle: boolean;
 
     private loop: EngineLoop | null = null;
@@ -58,13 +58,13 @@ export class EngineRuntime {
     };
 
     constructor(options: EngineRuntimeOptions = {}) {
-        this.engine = options.engine ?? new Engine();
+        this._visionEngine = options.visionEngine ?? new VisionEngine();
         this.autoCleanupOnPageLifecycle = options.autoCleanupOnPageLifecycle ?? true;
     }
 
-    /** Access to the underlying engine instance for advanced scenarios. */
-    get trackerEngine(): Engine {
-        return this.engine;
+    /** Access to the underlying VisionEngine instance for advanced scenarios. */
+    get visionEngine(): VisionEngine {
+        return this._visionEngine;
     }
 
     /** Returns true when a loop exists and is currently running. */
@@ -101,10 +101,10 @@ export class EngineRuntime {
             options.canvas.width = this.video.videoWidth;
             options.canvas.height = this.video.videoHeight;
 
-            await this.engine.init(options.engineOptions);
+            await this._visionEngine.init(options.visionEngineOptions);
             this.throwIfAborted(signal);
 
-            this.loop = new EngineLoop(this.engine, options.loopOptions);
+            this.loop = new EngineLoop(this._visionEngine, options.loopOptions);
             this.loop.start(this.video, options.canvas, options.app);
         } catch (error) {
             this.destroy();
@@ -127,7 +127,7 @@ export class EngineRuntime {
         this.loop?.destroy();
         this.loop = null;
 
-        this.engine.destroy();
+        this._visionEngine.destroy();
 
         if (this.stream) {
             for (const track of this.stream.getTracks()) {

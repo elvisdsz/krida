@@ -1,4 +1,4 @@
-import { TrackerResult } from "../engine/Engine";
+import { TrackerResult } from "../engine/VisionEngine";
 
 /**
  * Contract for all 2D canvas-based apps.

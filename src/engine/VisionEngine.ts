@@ -22,8 +22,8 @@ export interface TrackerResult {
     pose?: PoseTrackerResult;
 }
 
-/** Default values for {@link EngineOptions}. */
-export const EngineDefaults = {
+/** Default values for {@link VisionEngineOptions}. */
+export const VisionEngineDefaults = {
     /** EMA smoothing factor for landmarks. (0, 1]. Lower = smoother. */
     smoothingAlpha: 0.35,
     /** Path to directory containing MediaPipe vision task WASM files. */
@@ -34,26 +34,26 @@ export const EngineDefaults = {
     poseLandmarkerModelPath: "/models/pose_landmarker.task",
     /** Maximum number of hands to detect. */
     numHands: 2,
-} as const satisfies Partial<EngineOptions>;
+} as const satisfies Partial<VisionEngineOptions>;
 
-export interface EngineOptions {
-    /** Path to directory containing MediaPipe vision task WASM files. Default: {@link EngineDefaults.visionTaskFilesetPath} */
+export interface VisionEngineOptions {
+    /** Path to directory containing MediaPipe vision task WASM files. Default: {@link VisionEngineDefaults.visionTaskFilesetPath} */
     visionTaskFilesetPath?: string;
     /** Enable the hand landmark detector. */
     handLandmarkerEnabled?: boolean;
     /** Enable the pose landmarker. */
     poseLandmarkerEnabled?: boolean;
-    /** Path to the hand landmarker model file (.task). Default: {@link EngineDefaults.handLandmarkerModelPath} */
+    /** Path to the hand landmarker model file (.task). Default: {@link VisionEngineDefaults.handLandmarkerModelPath} */
     handLandmarkerModelPath?: string;
-    /** Path to the pose landmarker model file (.task). Default: {@link EngineDefaults.poseLandmarkerModelPath} */
+    /** Path to the pose landmarker model file (.task). Default: {@link VisionEngineDefaults.poseLandmarkerModelPath} */
     poseLandmarkerModelPath?: string;
-    /** EMA smoothing factor for landmarks. (0, 1]. Lower = smoother. Default: {@link EngineDefaults.smoothingAlpha} */
+    /** EMA smoothing factor for landmarks. (0, 1]. Lower = smoother. Default: {@link VisionEngineDefaults.smoothingAlpha} */
     smoothingAlpha?: number;
-    /** Maximum number of hands to detect (1 or 2). Default: {@link EngineDefaults.numHands} */
+    /** Maximum number of hands to detect (1 or 2). Default: {@link VisionEngineDefaults.numHands} */
     numHands?: number;
 }
 
-export class Engine {
+export class VisionEngine {
 
     private initialized: boolean = false;
 
@@ -70,7 +70,7 @@ export class Engine {
     /** Per-pose landmark filters (index matches pose index in results). */
     private poseLandmarkFilters: LandmarkFilter[] = [];
 
-    private smoothingAlpha: number = EngineDefaults.smoothingAlpha;
+    private smoothingAlpha: number = VisionEngineDefaults.smoothingAlpha;
 
     private resetState = (): void => {
         this.lastVideoTime = -1;
@@ -86,7 +86,7 @@ export class Engine {
         try {
             closeFn();
         } catch (error) {
-            console.warn(`Engine: failed to close ${name}.`, error);
+            console.warn(`VisionEngine: failed to close ${name}.`, error);
         }
     };
 
@@ -94,21 +94,21 @@ export class Engine {
      * Initialize the engine and load the requested MediaPipe models.
      * Must be called before calling {@link getTrackerResult}.
      */
-    init = async (options: EngineOptions): Promise<void> => {
+    init = async (options: VisionEngineOptions): Promise<void> => {
 
         if (this.initialized) {
-            console.warn("Engine is already initialized. Ignoring duplicate init call.");
+            console.warn("VisionEngine is already initialized. Ignoring duplicate init call.");
             return;
         }
 
         this.initialized = true;
         this.resetState();
 
-        this.smoothingAlpha = options.smoothingAlpha ?? EngineDefaults.smoothingAlpha;
+        this.smoothingAlpha = options.smoothingAlpha ?? VisionEngineDefaults.smoothingAlpha;
 
         try {
             const vision = await FilesetResolver.forVisionTasks(
-                options.visionTaskFilesetPath ?? EngineDefaults.visionTaskFilesetPath
+                options.visionTaskFilesetPath ?? VisionEngineDefaults.visionTaskFilesetPath
             );
 
             if (options.handLandmarkerEnabled) {
@@ -141,25 +141,25 @@ export class Engine {
         this.closeTask("pose landmarker", poseLandmarker?.close?.bind(poseLandmarker));
     };
 
-    private loadHandLandmarker = async (visionTaskFileset: any, options: EngineOptions): Promise<void> => {
+    private loadHandLandmarker = async (visionTaskFileset: any, options: VisionEngineOptions): Promise<void> => {
         this.handLandmarker = await HandLandmarker.createFromOptions(
             visionTaskFileset,
             {
                 baseOptions: {
-                    modelAssetPath: options.handLandmarkerModelPath ?? EngineDefaults.handLandmarkerModelPath,
+                    modelAssetPath: options.handLandmarkerModelPath ?? VisionEngineDefaults.handLandmarkerModelPath,
                 },
-                numHands: options.numHands ?? EngineDefaults.numHands,
+                numHands: options.numHands ?? VisionEngineDefaults.numHands,
                 runningMode: "VIDEO",
             }
         );
     };
 
-    private loadPoseLandmarker = async (visionTaskFileset: any, options: EngineOptions): Promise<void> => {
+    private loadPoseLandmarker = async (visionTaskFileset: any, options: VisionEngineOptions): Promise<void> => {
         this.poseLandmarker = await PoseLandmarker.createFromOptions(
             visionTaskFileset,
             {
                 baseOptions: {
-                    modelAssetPath: options.poseLandmarkerModelPath ?? EngineDefaults.poseLandmarkerModelPath,
+                    modelAssetPath: options.poseLandmarkerModelPath ?? VisionEngineDefaults.poseLandmarkerModelPath,
                 },
                 runningMode: "VIDEO",
             }
@@ -271,6 +271,6 @@ export class Engine {
     }
 }
 
-/** Convenience singleton. For multiple independent instances, instantiate {@link Engine} directly. */
-export const engine = new Engine();
-export default engine;
+/** Convenience singleton. For multiple independent instances, instantiate {@link VisionEngine} directly. */
+export const visionEngine = new VisionEngine();
+export default visionEngine;
