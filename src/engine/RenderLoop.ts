@@ -2,7 +2,7 @@ import { DrawingUtils, HandLandmarker, NormalizedLandmark, PoseLandmarker } from
 import { VisionEngine, HandTrackerResult, PoseTrackerResult, TrackerResult } from "./VisionEngine";
 import App from "../app/App";
 
-export interface EngineLoopOptions {
+export interface RenderLoopOptions {
     /**
      * Target frames per second. Set to `null` for uncapped rendering.
      * Default: `30`
@@ -31,7 +31,7 @@ export interface EngineLoopOptions {
  * const visionEngine = new VisionEngine();
  * await visionEngine.init({ handLandmarkerEnabled: true, ... });
  *
- * const loop = new EngineLoop(visionEngine, { targetFPS: 30 });
+ * const loop = new RenderLoop(visionEngine, { targetFPS: 30 });
  * loop.start(videoElement, canvasElement, myApp);
  *
  * // Later:
@@ -39,7 +39,7 @@ export interface EngineLoopOptions {
  * visionEngine.destroy();
  * ```
  */
-export class EngineLoop {
+export class RenderLoop {
 
     private frameId: number | null = null;
     private lastFrameTime: number = 0;
@@ -51,7 +51,7 @@ export class EngineLoop {
     private _app: App | null = null;
     private readonly visionEngine: VisionEngine;
 
-    constructor(visionEngine: VisionEngine, options: EngineLoopOptions = {}) {
+    constructor(visionEngine: VisionEngine, options: RenderLoopOptions = {}) {
         this.visionEngine = visionEngine;
         const targetFPS = options.targetFPS !== undefined ? options.targetFPS : 30;
         this.frameInterval = targetFPS !== null ? 1000 / targetFPS : null;
@@ -225,4 +225,4 @@ export class EngineLoop {
     }
 }
 
-export default EngineLoop;
+export default RenderLoop;

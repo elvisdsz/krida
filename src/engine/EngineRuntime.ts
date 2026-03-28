@@ -1,6 +1,6 @@
 import type App from "../app/App";
 import { VisionEngine, type VisionEngineOptions } from "./VisionEngine";
-import { EngineLoop, type EngineLoopOptions } from "./EngineLoop";
+import { RenderLoop, type RenderLoopOptions } from "./RenderLoop";
 
 export interface EngineRuntimeOptions {
     /** Existing VisionEngine instance to use. Defaults to a new VisionEngine instance. Note: EngineRuntime takes ownership and will call destroy() on it during cleanup. */
@@ -18,14 +18,14 @@ export interface EngineRuntimeStartOptions {
     app: App;
     /** VisionEngine initialization options. */
     visionEngineOptions: VisionEngineOptions;
-    /** Loop options used to construct EngineLoop. */
-    loopOptions?: EngineLoopOptions;
+    /** RenderLoop options used to construct RenderLoop. */
+    renderLoopOptions?: RenderLoopOptions;
     /** Media constraints for getUserMedia. Default: { video: true }. */
     mediaStreamConstraints?: MediaStreamConstraints;
 }
 
 /**
- * High-level runtime that manages camera, VisionEngine, and EngineLoop lifecycles.
+ * High-level runtime that manages camera, VisionEngine, and RenderLoop lifecycles.
  *
  * Usage:
  * ```ts
@@ -46,7 +46,7 @@ export class EngineRuntime {
     private readonly _visionEngine: VisionEngine;
     private readonly autoCleanupOnPageLifecycle: boolean;
 
-    private loop: EngineLoop | null = null;
+    private renderLoop: RenderLoop | null = null;
     private video: HTMLVideoElement | null = null;
     private stream: MediaStream | null = null;
     private startupAbortController: AbortController | null = null;
@@ -69,7 +69,7 @@ export class EngineRuntime {
 
     /** Returns true when a loop exists and is currently running. */
     get isRunning(): boolean {
-        return this.loop?.isRunning ?? false;
+        return this.renderLoop?.isRunning ?? false;
     }
 
     /**
@@ -104,8 +104,8 @@ export class EngineRuntime {
             await this._visionEngine.init(options.visionEngineOptions);
             this.throwIfAborted(signal);
 
-            this.loop = new EngineLoop(this._visionEngine, options.loopOptions);
-            this.loop.start(this.video, options.canvas, options.app);
+            this.renderLoop = new RenderLoop(this._visionEngine, options.renderLoopOptions);
+            this.renderLoop.start(this.video, options.canvas, options.app);
         } catch (error) {
             this.destroy();
             throw error;
@@ -124,8 +124,8 @@ export class EngineRuntime {
         this.startupAbortController?.abort();
         this.startupAbortController = null;
 
-        this.loop?.destroy();
-        this.loop = null;
+        this.renderLoop?.destroy();
+        this.renderLoop = null;
 
         this._visionEngine.destroy();
 

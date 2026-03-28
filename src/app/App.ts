@@ -4,7 +4,7 @@ import { TrackerResult } from "../engine/VisionEngine";
  * Contract for all 2D canvas-based apps.
  *
  * Implement this interface to create a new interactive experience.
- * An app is registered with {@link EngineLoop} and receives a draw callback
+ * An app is registered with {@link RenderLoop} and receives a draw callback
  * every frame with up-to-date tracking results.
  *
  * @example

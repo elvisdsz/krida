@@ -1,8 +1,8 @@
 export { VisionEngine, VisionEngineDefaults } from "./engine/VisionEngine";
 export type { VisionEngineOptions, HandTrackerResult, PoseTrackerResult, TrackerResult } from "./engine/VisionEngine";
 
-export { EngineLoop } from "./engine/EngineLoop";
-export type { EngineLoopOptions } from "./engine/EngineLoop";
+export { RenderLoop } from "./engine/RenderLoop";
+export type { RenderLoopOptions } from "./engine/RenderLoop";
 
 export { EngineRuntime } from "./engine/EngineRuntime";
 export type { EngineRuntimeOptions, EngineRuntimeStartOptions } from "./engine/EngineRuntime";

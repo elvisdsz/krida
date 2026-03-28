@@ -43,7 +43,7 @@ async function main() {
             handLandmarkerModelPath: HAND_LANDMARKER_MODEL_PATH,
             poseLandmarkerModelPath: POSE_LANDMARKER_MODEL_PATH,
         },
-        loopOptions: {
+        renderLoopOptions: {
             debugView: true,
         },
     });
