@@ -2,14 +2,14 @@ import type App from "../app/App";
 import { VisionEngine, type VisionEngineOptions } from "./VisionEngine";
 import { RenderLoop, type RenderLoopOptions } from "./RenderLoop";
 
-export interface EngineRuntimeOptions {
-    /** Existing VisionEngine instance to use. Defaults to a new VisionEngine instance. Note: EngineRuntime takes ownership and will call destroy() on it during cleanup. */
+export interface SessionOptions {
+    /** Existing VisionEngine instance to use. Defaults to a new VisionEngine instance. Note: Session takes ownership and will call destroy() on it during cleanup. */
     visionEngine?: VisionEngine;
     /** Automatically cleanup when the page is hidden or unloaded. Default: true. */
     autoCleanupOnPageLifecycle?: boolean;
 }
 
-export interface EngineRuntimeStartOptions {
+export interface SessionStartOptions {
     /** Video element that receives webcam frames. */
     video: HTMLVideoElement;
     /** Canvas element used for app rendering. */
@@ -25,12 +25,12 @@ export interface EngineRuntimeStartOptions {
 }
 
 /**
- * High-level runtime that manages camera, VisionEngine, and RenderLoop lifecycles.
+ * High-level session that manages camera, VisionEngine, and RenderLoop lifecycles.
  *
  * Usage:
  * ```ts
- * const runtime = new EngineRuntime();
- * await runtime.start({
+ * const kridaSession = new Session();
+ * await kridaSession.start({
  *   video,
  *   canvas,
  *   app,
@@ -38,10 +38,10 @@ export interface EngineRuntimeStartOptions {
  * });
  *
  * // Later:
- * runtime.destroy();
+ * kridaSession.destroy();
  * ```
  */
-export class EngineRuntime {
+export class Session {
 
     private readonly _visionEngine: VisionEngine;
     private readonly _autoCleanupOnPageLifecycle: boolean;
@@ -57,7 +57,7 @@ export class EngineRuntime {
         this.destroy();
     };
 
-    constructor(options: EngineRuntimeOptions = {}) {
+    constructor(options: SessionOptions = {}) {
         this._visionEngine = options.visionEngine ?? new VisionEngine();
         this._autoCleanupOnPageLifecycle = options.autoCleanupOnPageLifecycle ?? true;
     }
@@ -74,9 +74,9 @@ export class EngineRuntime {
 
     /**
      * Start camera streaming, initialize the engine, and begin rendering.
-     * Any previously running runtime session is destroyed first.
+     * Any previously running session is destroyed first.
      */
-    start = async (options: EngineRuntimeStartOptions): Promise<void> => {
+    start = async (options: SessionStartOptions): Promise<void> => {
         this.destroy();
 
         const startupAbortController = new AbortController();
@@ -117,7 +117,7 @@ export class EngineRuntime {
     };
 
     /**
-     * Stop rendering and release all runtime-owned resources.
+     * Stop rendering and release all session-owned resources.
      * Safe to call multiple times.
      */
     destroy = (): void => {
@@ -163,7 +163,7 @@ export class EngineRuntime {
             };
             const onAbort = (): void => {
                 cleanup();
-                reject(new Error("EngineRuntime start aborted"));
+                reject(new Error("Session start aborted"));
             };
 
             const cleanup = (): void => {
@@ -180,7 +180,7 @@ export class EngineRuntime {
 
     private throwIfAborted(signal: AbortSignal): void {
         if (signal.aborted) {
-            throw new Error("EngineRuntime start aborted");
+            throw new Error("Session start aborted");
         }
     }
 
@@ -205,4 +205,4 @@ export class EngineRuntime {
     }
 }
 
-export default EngineRuntime;
+export default Session;
