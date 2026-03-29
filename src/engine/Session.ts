@@ -93,7 +93,8 @@ export class Session {
 
             options.canvas.width = this._video.videoWidth;
             options.canvas.height = this._video.videoHeight;
-
+            
+            this.throwIfAborted(signal);
             await this._visionEngine.init(options.visionEngineOptions);
             this.throwIfAborted(signal);
 
