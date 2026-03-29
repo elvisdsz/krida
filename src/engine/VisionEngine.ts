@@ -101,6 +101,11 @@ export class VisionEngine {
             return;
         }
 
+        // validate startup options
+        if (!options.handLandmarkerEnabled && !options.poseLandmarkerEnabled) {
+            throw new Error("VisionEngine: At least one of handLandmarkerEnabled or poseLandmarkerEnabled must be true.");
+        }
+
         this._initialized = true;
         this.resetState();
 
