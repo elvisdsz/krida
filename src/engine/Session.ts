@@ -3,8 +3,6 @@ import { VisionEngine, type VisionEngineOptions } from "./VisionEngine";
 import { RenderLoop, type RenderLoopOptions } from "./RenderLoop";
 
 export interface SessionOptions {
-    /** Existing VisionEngine instance to use. Defaults to a new VisionEngine instance. Note: Session takes ownership and will call destroy() on it during cleanup. */
-    visionEngine?: VisionEngine;
     /** Automatically cleanup when the page is hidden or unloaded. Default: true. */
     autoCleanupOnPageLifecycle?: boolean;
 }
@@ -58,13 +56,8 @@ export class Session {
     };
 
     constructor(options: SessionOptions = {}) {
-        this._visionEngine = options.visionEngine ?? new VisionEngine();
+        this._visionEngine = new VisionEngine();
         this._autoCleanupOnPageLifecycle = options.autoCleanupOnPageLifecycle ?? true;
-    }
-
-    /** Access to the underlying VisionEngine instance for advanced scenarios. */
-    get visionEngine(): VisionEngine {
-        return this._visionEngine;
     }
 
     /** Returns true when a loop exists and is currently running. */
