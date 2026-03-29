@@ -72,10 +72,10 @@ export class RenderLoop {
         this._app = app;
         this._lastVideoTime = -1;
 
-        const drawFrame = async (currentTime: number) => {
+        const drawFrame = (currentTime: number) => {
             const delta = currentTime - this._lastFrameTime;
             if (this._frameInterval == null || delta >= this._frameInterval) {
-                await this.renderFrame(video, canvas);
+                this.renderFrame(video, canvas);
                 this._lastFrameTime = currentTime;
             }
             this._frameId = requestAnimationFrame(drawFrame);
@@ -136,7 +136,7 @@ export class RenderLoop {
 
     // ── Private helpers ──────────────────────────────────────────────────────
 
-    private async renderFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<void> {
+    private renderFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement): void {
         const ctx = canvas.getContext("2d");
         if (!ctx || !this._app) return;
 
@@ -148,7 +148,7 @@ export class RenderLoop {
 
         const startTimeMs = performance.now();
 
-        const trackerResult: TrackerResult = await this._visionEngine.getTrackerResult(video, startTimeMs);
+        const trackerResult: TrackerResult = this._visionEngine.getTrackerResult(video, startTimeMs);
 
         this._app.draw(ctx, trackerResult);
 

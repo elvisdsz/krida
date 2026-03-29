@@ -175,12 +175,10 @@ export class VisionEngine {
      *
      * @returns Tracking result for the frame. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
      */
-    getTrackerResult = async (video: HTMLVideoElement, startTimeMs: number): Promise<TrackerResult> => {
+    getTrackerResult = (video: HTMLVideoElement, startTimeMs: number): TrackerResult => {
 
-        const [handResult, poseResult] = await Promise.all([
-            this.getHandResult(video, startTimeMs),
-            this.getPoseResult(video, startTimeMs),
-        ]);
+        const handResult = this.getHandResult(video, startTimeMs);
+        const poseResult = this.getPoseResult(video, startTimeMs);
 
         return {
             hand: handResult ?? undefined,
@@ -197,7 +195,7 @@ export class VisionEngine {
      * 
      * @returns Detected landmarks (smoothed), or `null` if the model is not yet loaded.
      */
-    private getHandResult = async (video: HTMLVideoElement, startTimeMs: number): Promise<HandTrackerResult | null> => {
+    private getHandResult = (video: HTMLVideoElement, startTimeMs: number): HandTrackerResult | null => {
         if (this._handLandmarker == null) {
             return null;
         }
@@ -229,7 +227,7 @@ export class VisionEngine {
      * 
      * @returns Detected landmarks (smoothed), or `null` if the model is not yet loaded.
      */
-    private getPoseResult = async (video: HTMLVideoElement, startTimeMs: number): Promise<PoseTrackerResult | null> => {
+    private getPoseResult = (video: HTMLVideoElement, startTimeMs: number): PoseTrackerResult | null => {
         if (this._poseLandmarker == null) {
             return null;
         }
