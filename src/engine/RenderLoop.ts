@@ -28,8 +28,7 @@ export interface RenderLoopOptions {
  *
  * Usage:
  * ```ts
- * const visionEngine = new VisionEngine();
- * await visionEngine.init({ handLandmarkerEnabled: true, ... });
+ * const visionEngine = await VisionEngine.create({ handLandmarkerEnabled: true, ... });
  *
  * const loop = new RenderLoop(visionEngine, { targetFPS: 30 });
  * loop.start(videoElement, canvasElement, myApp);

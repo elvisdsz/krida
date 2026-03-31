@@ -55,8 +55,6 @@ export interface VisionEngineOptions {
 
 export class VisionEngine {
 
-    private _initialized: boolean = false;
-
     private _handLandmarker: HandLandmarker | null = null;
     private _poseLandmarker: PoseLandmarker | null = null;
 
@@ -71,6 +69,47 @@ export class VisionEngine {
     private _poseLandmarkFilters: LandmarkFilter[] = [];
 
     private _smoothingAlpha: number = VisionEngineDefaults.smoothingAlpha;
+
+    private constructor() {}
+
+    /**
+     * Create and initialize a new VisionEngine with the given options.
+     *
+     * Loads the requested MediaPipe models and returns a fully initialized instance
+     * ready for use with {@link getTrackerResult}. The returned instance has no
+     * invalid intermediate state — it is either fully ready or this method throws.
+     *
+     * @throws If neither `handLandmarkerEnabled` nor `poseLandmarkerEnabled` is `true`.
+     * @throws If any model fails to load.
+     */
+    static async create(options: VisionEngineOptions): Promise<VisionEngine> {
+
+        if (!options.handLandmarkerEnabled && !options.poseLandmarkerEnabled) {
+            throw new Error("VisionEngine: At least one of handLandmarkerEnabled or poseLandmarkerEnabled must be true.");
+        }
+
+        const engine = new VisionEngine();
+        engine._smoothingAlpha = options.smoothingAlpha ?? VisionEngineDefaults.smoothingAlpha;
+
+        try {
+            const vision = await FilesetResolver.forVisionTasks(
+                options.visionTaskFilesetPath ?? VisionEngineDefaults.visionTaskFilesetPath
+            );
+
+            if (options.handLandmarkerEnabled) {
+                await engine.loadHandLandmarker(vision, options);
+            }
+
+            if (options.poseLandmarkerEnabled) {
+                await engine.loadPoseLandmarker(vision, options);
+            }
+        } catch (error) {
+            engine.destroy();
+            throw error;
+        }
+
+        return engine;
+    }
 
     private resetState = (): void => {
         this._lastVideoTime = -1;
@@ -91,45 +130,6 @@ export class VisionEngine {
     };
 
     /**
-     * Initialize the engine and load the requested MediaPipe models.
-     * Must be called before calling {@link getTrackerResult}.
-     */
-    init = async (options: VisionEngineOptions): Promise<void> => {
-
-        if (this._initialized) {
-            console.warn("VisionEngine is already initialized. Ignoring duplicate init call.");
-            return;
-        }
-
-        // validate startup options
-        if (!options.handLandmarkerEnabled && !options.poseLandmarkerEnabled) {
-            throw new Error("VisionEngine: At least one of handLandmarkerEnabled or poseLandmarkerEnabled must be true.");
-        }
-
-        this._initialized = true;
-        this.resetState();
-
-        this._smoothingAlpha = options.smoothingAlpha ?? VisionEngineDefaults.smoothingAlpha;
-
-        try {
-            const vision = await FilesetResolver.forVisionTasks(
-                options.visionTaskFilesetPath ?? VisionEngineDefaults.visionTaskFilesetPath
-            );
-
-            if (options.handLandmarkerEnabled) {
-                await this.loadHandLandmarker(vision, options);
-            }
-
-            if (options.poseLandmarkerEnabled) {
-                await this.loadPoseLandmarker(vision, options);
-            }
-        } catch (error) {
-            this.destroy();
-            throw error;
-        }
-    };
-
-    /**
      * Release all engine-owned resources and reset state.
      * Safe to call multiple times.
      */
@@ -139,7 +139,6 @@ export class VisionEngine {
 
         this._handLandmarker = null;
         this._poseLandmarker = null;
-        this._initialized = false;
         this.resetState();
 
         this.closeTask("hand landmarker", handLandmarker?.close?.bind(handLandmarker));
@@ -198,7 +197,7 @@ export class VisionEngine {
      * @param video The video element containing the current frame to process.
      * @param startTimeMs The timestamp (in milliseconds) corresponding to the current video frame. This should be consistent across calls for the same frame to ensure proper caching. Typically, this would be `video.currentTime * 1000`.
      * 
-     * @returns Detected landmarks (smoothed), or `null` if the model is not yet loaded.
+     * @returns Detected landmarks (smoothed), or `null` if the hand landmarker was not enabled or the engine has been destroyed.
      */
     private getHandResult = (video: HTMLVideoElement, startTimeMs: number): HandTrackerResult | null => {
         if (this._handLandmarker == null) {
@@ -230,7 +229,7 @@ export class VisionEngine {
      * @param video The video element containing the current frame to process.
      * @param startTimeMs The timestamp (in milliseconds) corresponding to the current video frame. This should be consistent across calls for the same frame to ensure proper caching. Typically, this would be `video.currentTime * 1000`.
      * 
-     * @returns Detected landmarks (smoothed), or `null` if the model is not yet loaded.
+     * @returns Detected landmarks (smoothed), or `null` if the pose landmarker was not enabled or the engine has been destroyed.
      */
     private getPoseResult = (video: HTMLVideoElement, startTimeMs: number): PoseTrackerResult | null => {
         if (this._poseLandmarker == null) {

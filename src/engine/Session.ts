@@ -41,7 +41,7 @@ export interface SessionStartOptions {
  */
 export class Session {
 
-    private readonly _visionEngine: VisionEngine;
+    private _visionEngine: VisionEngine | null = null;
     private readonly _autoCleanupOnPageLifecycle: boolean;
 
     private _renderLoop: RenderLoop | null = null;
@@ -56,7 +56,6 @@ export class Session {
     };
 
     constructor(options: SessionOptions = {}) {
-        this._visionEngine = new VisionEngine();
         this._autoCleanupOnPageLifecycle = options.autoCleanupOnPageLifecycle ?? true;
     }
 
@@ -82,26 +81,42 @@ export class Session {
             this.registerLifecycleListeners();
         }
 
+        let stream: MediaStream | null = null;
+        let visionEngine: VisionEngine | null = null;
         try {
-            this._stream = await navigator.mediaDevices.getUserMedia(
+            stream = await navigator.mediaDevices.getUserMedia(
                 options.mediaStreamConstraints ?? { video: true }
             );
             this.throwIfAborted(signal);
 
-            this._video.srcObject = this._stream;
+            this._video.srcObject = stream;
             await this.waitForVideoData(this._video, signal);
 
             options.canvas.width = this._video.videoWidth;
             options.canvas.height = this._video.videoHeight;
-            
+
             this.throwIfAborted(signal);
-            await this._visionEngine.init(options.visionEngineOptions);
+            visionEngine = await VisionEngine.create(options.visionEngineOptions);
             this.throwIfAborted(signal);
+
+            // Commit all acquired resources — only reached if this call won the race.
+            this._stream = stream;
+            stream = null;
+            this._visionEngine = visionEngine;
+            visionEngine = null;
 
             this._renderLoop = new RenderLoop(this._visionEngine, options.renderLoopOptions);
             this._renderLoop.start(this._video, options.canvas, options.app);
         } catch (error) {
-            this.destroy();
+            visionEngine?.destroy();
+            if (stream) {
+                for (const track of stream.getTracks()) {
+                    track.stop();
+                }
+            }
+            if (this._startupAbortController === startupAbortController) {
+                this.destroy();
+            }
             throw error;
         } finally {
             if (this._startupAbortController === startupAbortController) {
@@ -121,7 +136,8 @@ export class Session {
         this._renderLoop?.destroy();
         this._renderLoop = null;
 
-        this._visionEngine.destroy();
+        this._visionEngine?.destroy();
+        this._visionEngine = null;
 
         if (this._stream) {
             for (const track of this._stream.getTracks()) {
