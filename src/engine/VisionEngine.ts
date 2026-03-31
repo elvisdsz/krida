@@ -111,23 +111,23 @@ export class VisionEngine {
         return engine;
     }
 
-    private resetState = (): void => {
+    private resetState(): void {
         this._lastVideoTime = -1;
         this._lastPoseVideoTime = -1;
         this._lastHandResult = null;
         this._lastPoseResult = null;
         this._handLandmarkFilters.length = 0;
         this._poseLandmarkFilters.length = 0;
-    };
+    }
 
-    private closeTask = (name: string, closeFn?: () => void): void => {
+    private closeTask(name: string, closeFn?: () => void): void {
         if (!closeFn) return;
         try {
             closeFn();
         } catch (error) {
             console.warn(`VisionEngine: failed to close ${name}.`, error);
         }
-    };
+    }
 
     /**
      * Release all engine-owned resources and reset state.
