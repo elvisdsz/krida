@@ -58,8 +58,8 @@ export class VisionEngine {
     private _handLandmarker: HandLandmarker | null = null;
     private _poseLandmarker: PoseLandmarker | null = null;
 
-    private _lastVideoTime: number = -1;
-    private _lastPoseVideoTime: number = -1;
+    private _lastHandFrameVideoTime: number = -1;
+    private _lastPoseFrameVideoTime: number = -1;
     private _lastHandStartTimeMs: number = -1;
     private _lastPoseStartTimeMs: number = -1;
     private _lastHandResult: HandTrackerResult | null = null;
@@ -114,8 +114,8 @@ export class VisionEngine {
     }
 
     private resetState(): void {
-        this._lastVideoTime = -1;
-        this._lastPoseVideoTime = -1;
+        this._lastHandFrameVideoTime = -1;
+        this._lastPoseFrameVideoTime = -1;
         this._lastHandStartTimeMs = -1;
         this._lastPoseStartTimeMs = -1;
         this._lastHandResult = null;
@@ -228,10 +228,10 @@ export class VisionEngine {
             return null;
         }
 
-        if (this._lastVideoTime === video.currentTime) {
+        if (this._lastHandFrameVideoTime === video.currentTime) {
             return this._lastHandResult;
         }
-        this._lastVideoTime = video.currentTime;
+        this._lastHandFrameVideoTime = video.currentTime;
 
         const normalizedStartTimeMs = this.getMonotonicStartTimeMs(startTimeMs, this._lastHandStartTimeMs);
         this._lastHandStartTimeMs = normalizedStartTimeMs;
@@ -264,10 +264,10 @@ export class VisionEngine {
             return null;
         }
 
-        if (this._lastPoseVideoTime === video.currentTime) {
+        if (this._lastPoseFrameVideoTime === video.currentTime) {
             return this._lastPoseResult;
         }
-        this._lastPoseVideoTime = video.currentTime;
+        this._lastPoseFrameVideoTime = video.currentTime;
 
         const normalizedStartTimeMs = this.getMonotonicStartTimeMs(startTimeMs, this._lastPoseStartTimeMs);
         this._lastPoseStartTimeMs = normalizedStartTimeMs;
