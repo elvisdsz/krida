@@ -233,7 +233,7 @@ export class VisionEngine {
         }
         this._lastHandFrameVideoTime = video.currentTime;
 
-        const normalizedStartTimeMs = this.getMonotonicStartTimeMs(startTimeMs, this._lastHandStartTimeMs);
+        const normalizedStartTimeMs = VisionEngine.getMonotonicStartTimeMs(startTimeMs, this._lastHandStartTimeMs);
         this._lastHandStartTimeMs = normalizedStartTimeMs;
 
         const result = this._handLandmarker.detectForVideo(video, normalizedStartTimeMs);
@@ -269,7 +269,7 @@ export class VisionEngine {
         }
         this._lastPoseFrameVideoTime = video.currentTime;
 
-        const normalizedStartTimeMs = this.getMonotonicStartTimeMs(startTimeMs, this._lastPoseStartTimeMs);
+        const normalizedStartTimeMs = VisionEngine.getMonotonicStartTimeMs(startTimeMs, this._lastPoseStartTimeMs);
         this._lastPoseStartTimeMs = normalizedStartTimeMs;
 
         const result = this._poseLandmarker.detectForVideo(video, normalizedStartTimeMs);
