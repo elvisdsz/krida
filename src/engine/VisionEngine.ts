@@ -60,6 +60,8 @@ export class VisionEngine {
 
     private _lastVideoTime: number = -1;
     private _lastPoseVideoTime: number = -1;
+    private _lastHandStartTimeMs: number = -1;
+    private _lastPoseStartTimeMs: number = -1;
     private _lastHandResult: HandTrackerResult | null = null;
     private _lastPoseResult: PoseTrackerResult | null = null;
 
@@ -114,10 +116,28 @@ export class VisionEngine {
     private resetState(): void {
         this._lastVideoTime = -1;
         this._lastPoseVideoTime = -1;
+        this._lastHandStartTimeMs = -1;
+        this._lastPoseStartTimeMs = -1;
         this._lastHandResult = null;
         this._lastPoseResult = null;
         this._handLandmarkFilters.length = 0;
         this._poseLandmarkFilters.length = 0;
+    }
+
+    /**
+     * Ensure timestamps are strictly increasing.
+     *
+     * Callers may provide timestamps from non-monotonic clocks (for example,
+     * media timeline time that moves backward on seek/replay). This guard keeps
+     * the detector stable by coercing each timestamp above the previous value.
+     * So a timestamp equal to or less than the previous value is incremented by 1.
+     */
+    private static getMonotonicStartTimeMs(startTimeMs: number, previousStartTimeMs: number): number {
+        if (startTimeMs > previousStartTimeMs) {
+            return startTimeMs;
+        }
+
+        return previousStartTimeMs + 1;
     }
 
     private closeTask(name: string, closeFn?: () => void): void {
@@ -175,7 +195,10 @@ export class VisionEngine {
      * Results are cached per video frame; calling multiple times with the same frame is free.
      * 
      * @param video The video element containing the current frame to process.
-     * @param startTimeMs The timestamp (in milliseconds) corresponding to the current video frame. This should be consistent across calls for the same frame to ensure proper caching. Typically, this would be `video.currentTime * 1000`.
+     * @param startTimeMs Timestamp in milliseconds for the current frame.
+     * `performance.now()` is preferred but `video.currentTime` is also a valid source.
+     * If a non-monotonic value is provided (for example from playback timeline time),
+     * VisionEngine will internally coerce it to remain strictly increasing.
      *
      * @returns Tracking result for the frame. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
      */
@@ -195,7 +218,8 @@ export class VisionEngine {
      * Results are cached per video frame; calling multiple times with the same frame is free.
      * 
      * @param video The video element containing the current frame to process.
-     * @param startTimeMs The timestamp (in milliseconds) corresponding to the current video frame. This should be consistent across calls for the same frame to ensure proper caching. Typically, this would be `video.currentTime * 1000`.
+     * @param startTimeMs Timestamp in milliseconds for the current frame. A monotonic
+     * source (for example `performance.now()`) is recommended.
      * 
      * @returns Detected landmarks (smoothed), or `null` if the hand landmarker was not enabled or the engine has been destroyed.
      */
@@ -209,14 +233,17 @@ export class VisionEngine {
         }
         this._lastVideoTime = video.currentTime;
 
-        const result = this._handLandmarker.detectForVideo(video, startTimeMs);
+        const normalizedStartTimeMs = this.getMonotonicStartTimeMs(startTimeMs, this._lastHandStartTimeMs);
+        this._lastHandStartTimeMs = normalizedStartTimeMs;
+
+        const result = this._handLandmarker.detectForVideo(video, normalizedStartTimeMs);
 
         const smoothedLandmarks = this.filterLandmarks(result.landmarks, this._handLandmarkFilters);
 
         this._lastHandResult = {
             ...result,
             landmarks: smoothedLandmarks,
-            startTimeMs,
+            startTimeMs: normalizedStartTimeMs,
         } as HandTrackerResult;
 
         return this._lastHandResult;
@@ -227,7 +254,8 @@ export class VisionEngine {
      * Results are cached per video frame; calling multiple times with the same frame is free.
      * 
      * @param video The video element containing the current frame to process.
-     * @param startTimeMs The timestamp (in milliseconds) corresponding to the current video frame. This should be consistent across calls for the same frame to ensure proper caching. Typically, this would be `video.currentTime * 1000`.
+     * @param startTimeMs Timestamp in milliseconds for the current frame. A monotonic
+     * source (for example `performance.now()`) is recommended.
      * 
      * @returns Detected landmarks (smoothed), or `null` if the pose landmarker was not enabled or the engine has been destroyed.
      */
@@ -241,14 +269,17 @@ export class VisionEngine {
         }
         this._lastPoseVideoTime = video.currentTime;
 
-        const result = this._poseLandmarker.detectForVideo(video, startTimeMs);
+        const normalizedStartTimeMs = this.getMonotonicStartTimeMs(startTimeMs, this._lastPoseStartTimeMs);
+        this._lastPoseStartTimeMs = normalizedStartTimeMs;
+
+        const result = this._poseLandmarker.detectForVideo(video, normalizedStartTimeMs);
 
         const smoothedLandmarks = this.filterLandmarks(result.landmarks, this._poseLandmarkFilters);
 
         this._lastPoseResult = {
             ...result,
             landmarks: smoothedLandmarks,
-            startTimeMs,
+            startTimeMs: normalizedStartTimeMs,
         } as PoseTrackerResult;
 
         return this._lastPoseResult;
