@@ -16,6 +16,12 @@ const FINGERTIPS = [4, 8, 12, 16, 20];
 
 const pointerApp = {
     name: "Pointer",
+    onStart() {
+        status.textContent = "Ready - show your hand!";
+    },
+    onStop() {
+        status.textContent = "Session stopped.";
+    },
     draw(ctx, trackerResult) {
         for (const hand of trackerResult.hand?.landmarks || []) {
             for (const i of FINGERTIPS) {
@@ -47,8 +53,6 @@ async function main() {
             debugView: true,
         },
     });
-
-    status.textContent = "Ready - show your hand!";
 }
 
 main().catch(err => {

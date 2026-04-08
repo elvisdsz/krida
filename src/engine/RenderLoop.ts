@@ -69,6 +69,7 @@ export class RenderLoop {
     start(video: HTMLVideoElement, canvas: HTMLCanvasElement, app: App): void {
         this.stop();
         this._app = app;
+        this._app.onStart?.();
         this._lastVideoTime = -1;
 
         const drawFrame = (currentTime: number) => {
@@ -88,7 +89,9 @@ export class RenderLoop {
         if (this._frameId !== null) {
             cancelAnimationFrame(this._frameId);
             this._frameId = null;
+            this._app?.onStop?.();
         }
+        this._app = null;
         this._drawingUtils = null;
     }
 
@@ -98,14 +101,19 @@ export class RenderLoop {
      */
     destroy(): void {
         this.stop();
-        this._app = null;
         this._lastFrameTime = 0;
         this._lastVideoTime = -1;
     }
 
     /** Swap the active app without restarting the loop. */
     setApp(app: App): void {
+        if (this.isRunning) {
+            this._app?.onStop?.();
+        }
         this._app = app;
+        if (this.isRunning) {
+            this._app.onStart?.();
+        }
     }
 
     /** Returns `true` if debug view is enabled. */

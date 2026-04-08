@@ -27,6 +27,22 @@ interface App {
     name: string;
 
     /**
+     * Optional hook called when this app becomes active in a running loop.
+     *
+     * Called by {@link RenderLoop.start} and when swapping apps with
+     * {@link RenderLoop.setApp} while the loop is running.
+     */
+    onStart?(): void;
+
+    /**
+     * Optional hook called when this app is detached from the loop.
+     *
+     * Called by {@link RenderLoop.stop}, {@link RenderLoop.destroy}, and before
+     * replacing the active app via {@link RenderLoop.setApp}.
+     */
+    onStop?(): void;
+
+    /**
      * Called once per rendered frame.
      *
      * @param ctx           2D canvas rendering context. Cleared before each call unless `autoClear` is disabled on the loop.
