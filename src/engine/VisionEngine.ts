@@ -113,17 +113,6 @@ export class VisionEngine {
         return engine;
     }
 
-    private resetState(): void {
-        this._lastHandFrameVideoTime = -1;
-        this._lastPoseFrameVideoTime = -1;
-        this._lastHandStartTimeMs = -1;
-        this._lastPoseStartTimeMs = -1;
-        this._lastHandResult = null;
-        this._lastPoseResult = null;
-        this._handLandmarkFilters.length = 0;
-        this._poseLandmarkFilters.length = 0;
-    }
-
     /**
      * Ensure timestamps are strictly increasing.
      *
@@ -150,7 +139,7 @@ export class VisionEngine {
     }
 
     /**
-     * Release all engine-owned resources and reset state.
+     * Release all engine-owned resources.
      * Safe to call multiple times.
      */
     destroy = (): void => {
@@ -159,7 +148,6 @@ export class VisionEngine {
 
         this._handLandmarker = null;
         this._poseLandmarker = null;
-        this.resetState();
 
         this.closeTask("hand landmarker", handLandmarker?.close?.bind(handLandmarker));
         this.closeTask("pose landmarker", poseLandmarker?.close?.bind(poseLandmarker));
