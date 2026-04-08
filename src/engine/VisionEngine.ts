@@ -57,6 +57,7 @@ export class VisionEngine {
 
     private _handLandmarker: HandLandmarker | null = null;
     private _poseLandmarker: PoseLandmarker | null = null;
+    private _isDestroyed: boolean = false;
 
     private _lastHandFrameVideoTime: number = -1;
     private _lastPoseFrameVideoTime: number = -1;
@@ -143,6 +144,12 @@ export class VisionEngine {
      * Safe to call multiple times.
      */
     destroy = (): void => {
+        if (this._isDestroyed) {
+            return;
+        }
+
+        this._isDestroyed = true;
+
         const handLandmarker = this._handLandmarker;
         const poseLandmarker = this._poseLandmarker;
 
@@ -189,8 +196,12 @@ export class VisionEngine {
      * VisionEngine will internally coerce it to remain strictly increasing.
      *
      * @returns Tracking result for the frame. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
+     * @throws If called after {@link destroy}; a destroyed engine instance must not be reused.
      */
     getTrackerResult = (video: HTMLVideoElement, startTimeMs: number): TrackerResult => {
+        if (this._isDestroyed) {
+            throw new Error("VisionEngine: getTrackerResult called after destroy(). Create a new VisionEngine instance.");
+        }
 
         const handResult = this.getHandResult(video, startTimeMs);
         const poseResult = this.getPoseResult(video, startTimeMs);
