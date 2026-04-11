@@ -1,11 +1,11 @@
 export { VisionEngine, VisionEngineDefaults } from "./engine/VisionEngine";
 export type { VisionEngineOptions, HandTrackerResult, PoseTrackerResult, TrackerResult } from "./engine/VisionEngine";
 
-export { RenderLoop } from "./engine/RenderLoop";
-export type { RenderLoopOptions } from "./engine/RenderLoop";
+export { RenderLoop } from "./render/RenderLoop";
+export type { RenderLoopOptions } from "./render/RenderLoop";
 
-export { Session } from "./engine/Session";
-export type { SessionOptions, SessionStartOptions } from "./engine/Session";
+export { Session } from "./runtime/Session";
+export type { SessionOptions, SessionStartOptions } from "./runtime/Session";
 
 export type { default as App } from "./app/App";
 

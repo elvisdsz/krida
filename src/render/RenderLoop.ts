@@ -1,5 +1,5 @@
 import { DrawingUtils, HandLandmarker, NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
-import { VisionEngine, HandTrackerResult, PoseTrackerResult, TrackerResult } from "./VisionEngine";
+import { VisionEngine, HandTrackerResult, PoseTrackerResult, TrackerResult } from "../engine/VisionEngine";
 import App from "../app/App";
 
 export interface RenderLoopOptions {

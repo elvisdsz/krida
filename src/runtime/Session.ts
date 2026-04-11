@@ -1,6 +1,6 @@
 import type App from "../app/App";
-import { VisionEngine, type VisionEngineOptions } from "./VisionEngine";
-import { RenderLoop, type RenderLoopOptions } from "./RenderLoop";
+import { VisionEngine, type VisionEngineOptions } from "../engine/VisionEngine";
+import { RenderLoop, type RenderLoopOptions } from "../render/RenderLoop";
 
 export interface SessionOptions {
     /** Automatically cleanup when the page is hidden or unloaded. Default: true. */
