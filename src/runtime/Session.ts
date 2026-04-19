@@ -96,6 +96,7 @@ export class Session {
             options.canvas.height = this._video.videoHeight;
 
             this.throwIfAborted(signal);
+            const engineStart = performance.now();
             visionEngine = await VisionEngine.create(options.visionEngineOptions);
             this.throwIfAborted(signal);
 
@@ -105,8 +106,11 @@ export class Session {
             this._visionEngine = visionEngine;
             visionEngine = null;
 
+            const monitor = options.renderLoopOptions?.performanceMonitor ?? null;
             this._renderLoop = new RenderLoop(this._visionEngine, options.renderLoopOptions);
             this._renderLoop.start(this._video, options.canvas, options.app);
+
+            monitor?.recordStartupTime(performance.now() - engineStart);
         } catch (error) {
             visionEngine?.destroy();
             if (stream) {

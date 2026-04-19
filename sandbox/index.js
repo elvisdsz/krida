@@ -1,4 +1,4 @@
-import { Session } from "../dist/index.mjs";
+import { Session, PerformanceMonitor } from "../dist/index.mjs";
 
 const WASM_PATH =
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm";
@@ -7,9 +7,17 @@ const HAND_LANDMARKER_MODEL_PATH =
 const POSE_LANDMARKER_MODEL_PATH =
     "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
 
-const video  = document.getElementById("webcam");
-const canvas = document.getElementById("canvas");
-const status = document.getElementById("status");
+const video      = document.getElementById("webcam");
+const canvas     = document.getElementById("canvas");
+const status     = document.getElementById("status");
+const hudEl      = document.getElementById("hud");
+const exportBtn  = document.getElementById("export-btn");
+
+const params = new URLSearchParams(location.search);
+const runLabel = params.get("run") ?? "sandbox";
+
+const monitor = new PerformanceMonitor({ label: runLabel, windowSize: 300 });
+let hudInterval = null;
 
 // Landmark indices for all five fingertips (MediaPipe hand model)
 const FINGERTIPS = [4, 8, 12, 16, 20];
@@ -51,9 +59,44 @@ async function main() {
         },
         renderLoopOptions: {
             debugView: true,
+            performanceMonitor: monitor,
         },
     });
+
+    // Live HUD - update every second
+    if (hudInterval !== null) {
+        clearInterval(hudInterval);
+    }
+
+    hudInterval = setInterval(() => {
+        const snap = monitor.snapshot();
+        const fps  = snap.actualFPS.toFixed(1);
+        const inf  = snap.handInference?.mean.toFixed(1) ?? snap.poseInference?.mean.toFixed(1) ?? "—";
+        hudEl.textContent = `${runLabel} | FPS: ${fps} | inference: ${inf} ms`;
+    }, 1000);
 }
+
+exportBtn.addEventListener("click", () => {
+    const json = JSON.stringify(monitor.snapshot(), null, 2);
+
+    if (!navigator.clipboard?.writeText) {
+        exportBtn.textContent = "Failed – copy manually";
+        setTimeout(() => { exportBtn.textContent = "Copy Snapshot"; }, 2000);
+        return;
+    }
+
+    navigator.clipboard.writeText(json)
+        .then(() => {
+            exportBtn.textContent = "Copied!";
+            setTimeout(() => { exportBtn.textContent = "Copy Snapshot"; }, 2000);
+        })
+        .catch(() => {
+            exportBtn.textContent = "Failed – copy manually";
+            setTimeout(() => { exportBtn.textContent = "Copy Snapshot"; }, 2000);
+        });
+});
+
+window.addEventListener("pagehide", () => clearInterval(hudInterval));
 
 main().catch(err => {
     status.textContent = `Error: ${err.message}`;

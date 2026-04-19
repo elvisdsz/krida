@@ -11,3 +11,6 @@ export type { default as App } from "./app/App";
 
 export { default as EMAFilter } from "./filters/EMAFilter";
 export type { default as LandmarkFilter } from "./filters/LandmarkFilter";
+
+export { PerformanceMonitor } from "./perf/PerformanceMonitor";
+export type { PerformanceMonitorOptions, PerformanceSnapshot, MetricStats } from "./perf/PerformanceMonitor";

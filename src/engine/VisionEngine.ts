@@ -8,6 +8,7 @@ import {
 } from "@mediapipe/tasks-vision";
 import LandmarkFilter from "../filters/LandmarkFilter";
 import EMAFilter from "../filters/EMAFilter";
+import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 
 export interface HandTrackerResult extends HandLandmarkerResult {
     startTimeMs: number;
@@ -194,17 +195,24 @@ export class VisionEngine {
      * `performance.now()` is preferred but `video.currentTime` is also a valid source.
      * If a non-monotonic value is provided (for example from playback timeline time),
      * VisionEngine will internally coerce it to remain strictly increasing.
+     * @param performanceMonitor Optional performance monitor used to record
+     * hand and pose inference/filter timings for newly processed frames.
+     * Pass `null` to disable instrumentation.
      *
      * @returns Tracking result for the frame. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
      * @throws If called after {@link destroy}; a destroyed engine instance must not be reused.
      */
-    getTrackerResult = (video: HTMLVideoElement, startTimeMs: number): TrackerResult => {
+    getTrackerResult = (
+        video: HTMLVideoElement,
+        startTimeMs: number,
+        performanceMonitor: PerformanceMonitor | null = null
+    ): TrackerResult => {
         if (this._isDestroyed) {
             throw new Error("VisionEngine: getTrackerResult called after destroy(). Create a new VisionEngine instance.");
         }
 
-        const handResult = this.getHandResult(video, startTimeMs);
-        const poseResult = this.getPoseResult(video, startTimeMs);
+        const handResult = this.getHandResult(video, startTimeMs, performanceMonitor);
+        const poseResult = this.getPoseResult(video, startTimeMs, performanceMonitor);
 
         return {
             hand: handResult ?? undefined,
@@ -219,10 +227,16 @@ export class VisionEngine {
      * @param video The video element containing the current frame to process.
      * @param startTimeMs Timestamp in milliseconds for the current frame. A monotonic
      * source (for example `performance.now()`) is recommended.
+     * @param performanceMonitor Optional performance monitor used to record
+     * hand inference and filtering timings for newly processed frames.
      * 
      * @returns Detected landmarks (smoothed), or `null` if the hand landmarker was not enabled or the engine has been destroyed.
      */
-    private getHandResult = (video: HTMLVideoElement, startTimeMs: number): HandTrackerResult | null => {
+    private getHandResult = (
+        video: HTMLVideoElement,
+        startTimeMs: number,
+        performanceMonitor: PerformanceMonitor | null
+    ): HandTrackerResult | null => {
         if (this._handLandmarker == null) {
             return null;
         }
@@ -235,9 +249,13 @@ export class VisionEngine {
         const normalizedStartTimeMs = VisionEngine.getMonotonicStartTimeMs(startTimeMs, this._lastHandStartTimeMs);
         this._lastHandStartTimeMs = normalizedStartTimeMs;
 
+        const t0 = performance.now();
         const result = this._handLandmarker.detectForVideo(video, normalizedStartTimeMs);
+        performanceMonitor?.recordHandInference(performance.now() - t0);
 
+        const tf0 = performance.now();
         const smoothedLandmarks = this.filterLandmarks(result.landmarks, this._handLandmarkFilters);
+        performanceMonitor?.recordHandFilter(performance.now() - tf0);
 
         this._lastHandResult = {
             ...result,
@@ -255,10 +273,16 @@ export class VisionEngine {
      * @param video The video element containing the current frame to process.
      * @param startTimeMs Timestamp in milliseconds for the current frame. A monotonic
      * source (for example `performance.now()`) is recommended.
+     * @param performanceMonitor Optional performance monitor used to record
+     * pose inference and filtering timings for newly processed frames.
      * 
      * @returns Detected landmarks (smoothed), or `null` if the pose landmarker was not enabled or the engine has been destroyed.
      */
-    private getPoseResult = (video: HTMLVideoElement, startTimeMs: number): PoseTrackerResult | null => {
+    private getPoseResult = (
+        video: HTMLVideoElement,
+        startTimeMs: number,
+        performanceMonitor: PerformanceMonitor | null
+    ): PoseTrackerResult | null => {
         if (this._poseLandmarker == null) {
             return null;
         }
@@ -271,9 +295,13 @@ export class VisionEngine {
         const normalizedStartTimeMs = VisionEngine.getMonotonicStartTimeMs(startTimeMs, this._lastPoseStartTimeMs);
         this._lastPoseStartTimeMs = normalizedStartTimeMs;
 
+        const t0 = performance.now();
         const result = this._poseLandmarker.detectForVideo(video, normalizedStartTimeMs);
+        performanceMonitor?.recordPoseInference(performance.now() - t0);
 
+        const tf0 = performance.now();
         const smoothedLandmarks = this.filterLandmarks(result.landmarks, this._poseLandmarkFilters);
+        performanceMonitor?.recordPoseFilter(performance.now() - tf0);
 
         this._lastPoseResult = {
             ...result,
