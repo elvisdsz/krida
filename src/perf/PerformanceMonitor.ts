@@ -23,7 +23,7 @@ export interface PerformanceSnapshot {
 export interface PerformanceMonitorOptions {
     /** Human-readable label for this run */
     label?: string;
-    /** Max number of frames to retain per metric series. Default: 300 (~10s at 30fps). */
+    /** Max number of frames to retain per metric series. Must be a positive integer. Default: 300 (~10s at 30fps). */
     windowSize?: number;
 }
 
@@ -49,30 +49,50 @@ function computeStats(samples: number[]): MetricStats {
 }
 
 class MetricSeries {
-    private readonly _samples: number[] = [];
+    private readonly _samples: number[];
     private readonly _cap: number;
+    private _nextIndex: number = 0;
+    private _count: number = 0;
 
     constructor(cap: number) {
         this._cap = cap;
+        this._samples = new Array(cap);
     }
 
     record(value: number): void {
-        this._samples.push(value);
-        if (this._samples.length > this._cap) {
-            this._samples.shift();
+        this._samples[this._nextIndex] = value;
+        this._nextIndex = (this._nextIndex + 1) % this._cap;
+        if (this._count < this._cap) {
+            this._count += 1;
         }
     }
 
     get count(): number {
-        return this._samples.length;
+        return this._count;
     }
 
     stats(): MetricStats {
-        return computeStats(this._samples);
+        return computeStats(this.collectSamples());
     }
 
     reset(): void {
-        this._samples.length = 0;
+        this._nextIndex = 0;
+        this._count = 0;
+    }
+
+    private collectSamples(): number[] {
+        if (this._count === 0) {
+            return [];
+        }
+
+        if (this._count < this._cap) {
+            return this._samples.slice(0, this._count);
+        }
+
+        return [
+            ...this._samples.slice(this._nextIndex),
+            ...this._samples.slice(0, this._nextIndex),
+        ];
     }
 }
 
@@ -91,7 +111,11 @@ export class PerformanceMonitor {
 
     constructor(options: PerformanceMonitorOptions = {}) {
         this.label = options.label ?? "unnamed";
-        this.windowSize = options.windowSize ?? 300;
+        const windowSize = options.windowSize ?? 300;
+        if (!Number.isInteger(windowSize) || windowSize <= 0) {
+            throw new Error(`PerformanceMonitor windowSize must be a positive integer, got ${windowSize}`);
+        }
+        this.windowSize = windowSize;
 
         this._frameTime = new MetricSeries(this.windowSize);
         this._handInference = new MetricSeries(this.windowSize);
