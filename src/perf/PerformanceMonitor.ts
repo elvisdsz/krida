@@ -12,7 +12,6 @@ export interface PerformanceSnapshot {
     capturedAt: string;
     windowSize: number;
     startupTimeMs: number | null;
-    skippedFrames: number;
     actualFPS: number;
     frameTime: MetricStats;
     handInference: MetricStats | null;
@@ -88,7 +87,6 @@ export class PerformanceMonitor {
     private readonly _handFilter: MetricSeries;
     private readonly _poseFilter: MetricSeries;
 
-    private _skippedFrames: number = 0;
     private _startupTimeMs: number | null = null;
 
     constructor(options: PerformanceMonitorOptions = {}) {
@@ -104,10 +102,6 @@ export class PerformanceMonitor {
 
     recordFrameTime(ms: number): void {
         this._frameTime.record(ms);
-    }
-
-    recordSkippedFrame(): void {
-        this._skippedFrames++;
     }
 
     recordHandInference(ms: number): void {
@@ -140,7 +134,6 @@ export class PerformanceMonitor {
             capturedAt: new Date().toISOString(),
             windowSize: this.windowSize,
             startupTimeMs: this._startupTimeMs,
-            skippedFrames: this._skippedFrames,
             actualFPS,
             frameTime: frameTimeStats,
             handInference: this._handInference.count > 0 ? this._handInference.stats() : null,
@@ -157,7 +150,6 @@ export class PerformanceMonitor {
         this._poseInference.reset();
         this._handFilter.reset();
         this._poseFilter.reset();
-        this._skippedFrames = 0;
         this._startupTimeMs = null;
     }
 }

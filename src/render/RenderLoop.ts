@@ -94,8 +94,6 @@ export class RenderLoop {
             if (this._frameInterval == null || delta >= this._frameInterval) {
                 this.renderFrame(video, canvas, currentTime);
                 this._lastFrameTime = currentTime;
-            } else {
-                this._monitor?.recordSkippedFrame();
             }
             this._frameId = requestAnimationFrame(drawFrame);
         };
