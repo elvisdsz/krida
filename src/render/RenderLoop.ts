@@ -19,10 +19,6 @@ export interface RenderLoopOptions {
      * Default: `true`
      */
     autoClear?: boolean;
-    /**
-     * Optional performance monitor to record per-frame metrics.
-     */
-    performanceMonitor?: PerformanceMonitor;
 }
 
 /**
@@ -57,13 +53,17 @@ export class RenderLoop {
     private readonly _monitor: PerformanceMonitor | null;
     private _lastAcceptedFrameTime: number = 0;
 
-    constructor(visionEngine: VisionEngine, options: RenderLoopOptions = {}) {
+    constructor(
+        visionEngine: VisionEngine,
+        options: RenderLoopOptions = {},
+        monitor: PerformanceMonitor | null = null
+    ) {
         this._visionEngine = visionEngine;
         const targetFPS = options.targetFPS !== undefined ? options.targetFPS : 30;
         this._frameInterval = targetFPS !== null ? 1000 / targetFPS : null;
         this._debugView = options.debugView ?? false;
         this._autoClear = options.autoClear ?? true;
-        this._monitor = options.performanceMonitor ?? null;
+        this._monitor = monitor;
     }
 
     /**

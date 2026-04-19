@@ -59,8 +59,8 @@ async function main() {
         },
         renderLoopOptions: {
             debugView: true,
-            performanceMonitor: monitor,
         },
+        performanceMonitor: monitor,
     });
 
     // Live HUD - update every second

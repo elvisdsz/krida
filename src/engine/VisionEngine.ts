@@ -86,7 +86,10 @@ export class VisionEngine {
      * @throws If neither `handLandmarkerEnabled` nor `poseLandmarkerEnabled` is `true`.
      * @throws If any model fails to load.
      */
-    static async create(options: VisionEngineOptions): Promise<VisionEngine> {
+    static async create(
+        options: VisionEngineOptions,
+        performanceMonitor: PerformanceMonitor | null = null
+    ): Promise<VisionEngine> {
 
         if (!options.handLandmarkerEnabled && !options.poseLandmarkerEnabled) {
             throw new Error("VisionEngine: At least one of handLandmarkerEnabled or poseLandmarkerEnabled must be true.");
@@ -95,22 +98,28 @@ export class VisionEngine {
         const engine = new VisionEngine();
         engine._smoothingAlpha = options.smoothingAlpha ?? VisionEngineDefaults.smoothingAlpha;
 
+        const createStart = performance.now();
         try {
+            const wasmStart = performance.now();
             const vision = await FilesetResolver.forVisionTasks(
                 options.visionTaskFilesetPath ?? VisionEngineDefaults.visionTaskFilesetPath
             );
+            performanceMonitor?.recordWasmFilesetInit(performance.now() - wasmStart);
 
             if (options.handLandmarkerEnabled) {
-                await engine.loadHandLandmarker(vision, options);
+                const { downloadMs, loadMs } = await engine.loadHandLandmarker(vision, options);
+                performanceMonitor?.recordHandModelInit(downloadMs, loadMs);
             }
 
             if (options.poseLandmarkerEnabled) {
-                await engine.loadPoseLandmarker(vision, options);
+                const { downloadMs, loadMs } = await engine.loadPoseLandmarker(vision, options);
+                performanceMonitor?.recordPoseModelInit(downloadMs, loadMs);
             }
         } catch (error) {
             engine.destroy();
             throw error;
         }
+        performanceMonitor?.recordEngineInit(performance.now() - createStart);
 
         return engine;
     }
@@ -161,29 +170,51 @@ export class VisionEngine {
         this.closeTask("pose landmarker", poseLandmarker?.close?.bind(poseLandmarker));
     };
 
-    private loadHandLandmarker = async (visionTaskFileset: any, options: VisionEngineOptions): Promise<void> => {
+    private loadHandLandmarker = async (
+        visionTaskFileset: any,
+        options: VisionEngineOptions
+    ): Promise<{ downloadMs: number; loadMs: number }> => {
+        const url = options.handLandmarkerModelPath ?? VisionEngineDefaults.handLandmarkerModelPath;
+
+        const d0 = performance.now();
+        const buffer = await fetchModelBuffer(url);
+        const downloadMs = performance.now() - d0;
+
+        const l0 = performance.now();
         this._handLandmarker = await HandLandmarker.createFromOptions(
             visionTaskFileset,
             {
-                baseOptions: {
-                    modelAssetPath: options.handLandmarkerModelPath ?? VisionEngineDefaults.handLandmarkerModelPath,
-                },
+                baseOptions: { modelAssetBuffer: buffer },
                 numHands: options.numHands ?? VisionEngineDefaults.numHands,
                 runningMode: "VIDEO",
             }
         );
+        const loadMs = performance.now() - l0;
+
+        return { downloadMs, loadMs };
     };
 
-    private loadPoseLandmarker = async (visionTaskFileset: any, options: VisionEngineOptions): Promise<void> => {
+    private loadPoseLandmarker = async (
+        visionTaskFileset: any,
+        options: VisionEngineOptions
+    ): Promise<{ downloadMs: number; loadMs: number }> => {
+        const url = options.poseLandmarkerModelPath ?? VisionEngineDefaults.poseLandmarkerModelPath;
+
+        const d0 = performance.now();
+        const buffer = await fetchModelBuffer(url);
+        const downloadMs = performance.now() - d0;
+
+        const l0 = performance.now();
         this._poseLandmarker = await PoseLandmarker.createFromOptions(
             visionTaskFileset,
             {
-                baseOptions: {
-                    modelAssetPath: options.poseLandmarkerModelPath ?? VisionEngineDefaults.poseLandmarkerModelPath,
-                },
+                baseOptions: { modelAssetBuffer: buffer },
                 runningMode: "VIDEO",
             }
         );
+        const loadMs = performance.now() - l0;
+
+        return { downloadMs, loadMs };
     };
 
     /**
@@ -329,4 +360,12 @@ export class VisionEngine {
 
         return rawLandmarks.map((landmarks, i) => landmarkFilters[i].filter(landmarks));
     }
+}
+
+async function fetchModelBuffer(url: string): Promise<Uint8Array> {
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error(`VisionEngine: failed to fetch model from ${res.url || url}: ${res.status} ${res.statusText}`);
+    }
+    return new Uint8Array(await res.arrayBuffer());
 }

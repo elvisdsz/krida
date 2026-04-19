@@ -7,11 +7,57 @@ export interface MetricStats {
     p99: number;
 }
 
+/**
+ * Model initialization timings, split into fetch and load phases.
+ *
+ * Obtained by fetching the `.task` file explicitly and handing the resulting
+ * buffer to MediaPipe via `modelAssetBuffer`. This prevents MediaPipe from
+ * overlapping fetch with parse/GPU-upload internally, so the sum of
+ * `downloadMs + loadMs` is typically a few ms slower than handing MediaPipe
+ * the URL directly - a small wall-time cost for an observable split.
+ *
+ * `downloadMs` on a warm HTTP cache is usually single-digit ms; cold
+ * downloads dominate when the model is served remotely.
+ */
+export interface ModelInitMetric {
+    /** Time spent fetching the model bytes over the network (or from cache). */
+    downloadMs: number;
+    /** Time spent parsing the model and uploading weights to the GPU. */
+    loadMs: number;
+}
+
+export interface CameraAcquireMetric {
+    /** Total milliseconds from just before getUserMedia until the video element had data. */
+    ms: number;
+    /**
+     * True if the permission state was not "granted" before the call, so the measurement
+     * may include user reaction time to the permission prompt. False means the number is
+     * pure machine time and safe to aggregate across sessions.
+     */
+    includedPermissionPrompt: boolean;
+}
+
 export interface PerformanceSnapshot {
     label: string;
     capturedAt: string;
     windowSize: number;
-    startupTimeMs: number | null;
+    cameraAcquire: CameraAcquireMetric | null;
+    /**
+     * Time for FilesetResolver.forVisionTasks to resolve: WASM fetch + compile + instantiate,
+     * combined. Streaming instantiation overlaps fetch and compile so the number cannot be
+     * linearly decomposed. Affected by both the HTTP cache and the browser's WASM module cache.
+     */
+    wasmFilesetInitMs: number | null;
+    /** Hand landmarker initialization. See {@link ModelInitMetric}. */
+    handModelInit: ModelInitMetric | null;
+    /** Pose landmarker initialization. See {@link ModelInitMetric}. */
+    poseModelInit: ModelInitMetric | null;
+    /**
+     * Umbrella total of VisionEngine.create() wall time, roughly equal to
+     * `wasmFilesetInitMs` + the sum of enabled model inits. Published for convenience so
+     * consumers don't have to sum components.
+     */
+    engineInitMs: number | null;
     actualFPS: number;
     frameTime: MetricStats;
     handInference: MetricStats | null;
@@ -107,7 +153,11 @@ export class PerformanceMonitor {
     private readonly _handFilter: MetricSeries;
     private readonly _poseFilter: MetricSeries;
 
-    private _startupTimeMs: number | null = null;
+    private _cameraAcquire: CameraAcquireMetric | null = null;
+    private _wasmFilesetInitMs: number | null = null;
+    private _handModelInit: ModelInitMetric | null = null;
+    private _poseModelInit: ModelInitMetric | null = null;
+    private _engineInitMs: number | null = null;
 
     constructor(options: PerformanceMonitorOptions = {}) {
         this.label = options.label ?? "unnamed";
@@ -144,8 +194,24 @@ export class PerformanceMonitor {
         this._poseFilter.record(ms);
     }
 
-    recordStartupTime(ms: number): void {
-        this._startupTimeMs = ms;
+    recordCameraAcquire(ms: number, includedPermissionPrompt: boolean): void {
+        this._cameraAcquire = { ms, includedPermissionPrompt };
+    }
+
+    recordWasmFilesetInit(ms: number): void {
+        this._wasmFilesetInitMs = ms;
+    }
+
+    recordHandModelInit(downloadMs: number, loadMs: number): void {
+        this._handModelInit = { downloadMs, loadMs };
+    }
+
+    recordPoseModelInit(downloadMs: number, loadMs: number): void {
+        this._poseModelInit = { downloadMs, loadMs };
+    }
+
+    recordEngineInit(ms: number): void {
+        this._engineInitMs = ms;
     }
 
     /** Compute and return an aggregated snapshot of all metrics collected so far. */
@@ -157,7 +223,11 @@ export class PerformanceMonitor {
             label: this.label,
             capturedAt: new Date().toISOString(),
             windowSize: this.windowSize,
-            startupTimeMs: this._startupTimeMs,
+            cameraAcquire: this._cameraAcquire,
+            wasmFilesetInitMs: this._wasmFilesetInitMs,
+            handModelInit: this._handModelInit,
+            poseModelInit: this._poseModelInit,
+            engineInitMs: this._engineInitMs,
             actualFPS,
             frameTime: frameTimeStats,
             handInference: this._handInference.count > 0 ? this._handInference.stats() : null,
@@ -174,6 +244,10 @@ export class PerformanceMonitor {
         this._poseInference.reset();
         this._handFilter.reset();
         this._poseFilter.reset();
-        this._startupTimeMs = null;
+        this._cameraAcquire = null;
+        this._wasmFilesetInitMs = null;
+        this._handModelInit = null;
+        this._poseModelInit = null;
+        this._engineInitMs = null;
     }
 }
