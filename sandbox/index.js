@@ -76,25 +76,27 @@ async function main() {
     }, 1000);
 }
 
-exportBtn.addEventListener("click", () => {
-    const json = JSON.stringify(monitor.snapshot(), null, 2);
+exportBtn.addEventListener("click", (() => {
+    let copyTimeout = null;
+    return () => {
+        const json = JSON.stringify(monitor.snapshot(), null, 2);
 
-    if (!navigator.clipboard?.writeText) {
-        exportBtn.textContent = "Failed – copy manually";
-        setTimeout(() => { exportBtn.textContent = "Copy Snapshot"; }, 2000);
-        return;
-    }
+        const resetLabel = (text) => {
+            clearTimeout(copyTimeout);
+            exportBtn.textContent = text;
+            copyTimeout = setTimeout(() => { exportBtn.textContent = "Copy Snapshot"; }, 2000);
+        };
 
-    navigator.clipboard.writeText(json)
-        .then(() => {
-            exportBtn.textContent = "Copied!";
-            setTimeout(() => { exportBtn.textContent = "Copy Snapshot"; }, 2000);
-        })
-        .catch(() => {
-            exportBtn.textContent = "Failed – copy manually";
-            setTimeout(() => { exportBtn.textContent = "Copy Snapshot"; }, 2000);
-        });
-});
+        if (!navigator.clipboard?.writeText) {
+            resetLabel("Failed – copy manually");
+            return;
+        }
+
+        navigator.clipboard.writeText(json)
+            .then(() => { resetLabel("Copied!"); })
+            .catch(() => { resetLabel("Failed – copy manually"); });
+    };
+})());
 
 window.addEventListener("pagehide", () => clearInterval(hudInterval));
 
