@@ -69,9 +69,11 @@ async function main() {
     }
 
     hudInterval = setInterval(() => {
-        const snap = monitor.snapshot();
-        const fps  = snap.actualFPS.toFixed(1);
-        const inf  = snap.handInference?.mean.toFixed(1) ?? snap.poseInference?.mean.toFixed(1) ?? "—";
+        const snap    = monitor.snapshot();
+        const fps     = snap.actualFPS.toFixed(1);
+        const infHand = snap.handInference?.mean.toFixed(1) ?? "—";
+        const infPose = snap.poseInference?.mean.toFixed(1) ?? "—";
+        const inf     = `H ${infHand} / P ${infPose}`;
         hudEl.textContent = `${runLabel} | FPS: ${fps} | inference: ${inf} ms`;
     }, 1000);
 }
