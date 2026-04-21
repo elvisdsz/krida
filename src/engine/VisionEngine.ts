@@ -97,29 +97,21 @@ export class VisionEngine {
 
         const engine = new VisionEngine();
         engine._smoothingAlpha = options.smoothingAlpha ?? VisionEngineDefaults.smoothingAlpha;
+        const visionTaskFilesetPath = options.visionTaskFilesetPath ?? VisionEngineDefaults.visionTaskFilesetPath;
 
-        const createStart = performance.now();
         try {
-            const wasmStart = performance.now();
-            const vision = await FilesetResolver.forVisionTasks(
-                options.visionTaskFilesetPath ?? VisionEngineDefaults.visionTaskFilesetPath
+            const createStart = performance.now();
+            const { value: vision, ms: wasmFilesetInitMs } = await measureAsync(() =>
+                FilesetResolver.forVisionTasks(visionTaskFilesetPath)
             );
-            performanceMonitor?.recordWasmFilesetInit(performance.now() - wasmStart);
+            performanceMonitor?.recordWasmFilesetInit(wasmFilesetInitMs);
 
-            if (options.handLandmarkerEnabled) {
-                const { downloadMs, loadMs } = await engine.loadHandLandmarker(vision, options);
-                performanceMonitor?.recordHandModelInit(downloadMs, loadMs);
-            }
-
-            if (options.poseLandmarkerEnabled) {
-                const { downloadMs, loadMs } = await engine.loadPoseLandmarker(vision, options);
-                performanceMonitor?.recordPoseModelInit(downloadMs, loadMs);
-            }
+            await engine.loadEnabledModels(vision, options, performanceMonitor);
+            performanceMonitor?.recordEngineInit(performance.now() - createStart);
         } catch (error) {
             engine.destroy();
             throw error;
         }
-        performanceMonitor?.recordEngineInit(performance.now() - createStart);
 
         return engine;
     }
@@ -170,51 +162,81 @@ export class VisionEngine {
         this.closeTask("pose landmarker", poseLandmarker?.close?.bind(poseLandmarker));
     };
 
+    private loadEnabledModels = async (
+        visionTaskFileset: any,
+        options: VisionEngineOptions,
+        performanceMonitor: PerformanceMonitor | null
+    ): Promise<void> => {
+        if (options.handLandmarkerEnabled) {
+            await this.loadHandLandmarker(visionTaskFileset, options, performanceMonitor);
+        }
+
+        if (options.poseLandmarkerEnabled) {
+            await this.loadPoseLandmarker(visionTaskFileset, options, performanceMonitor);
+        }
+    };
+
     private loadHandLandmarker = async (
         visionTaskFileset: any,
-        options: VisionEngineOptions
-    ): Promise<{ downloadMs: number; loadMs: number }> => {
+        options: VisionEngineOptions,
+        performanceMonitor: PerformanceMonitor | null
+    ): Promise<void> => {
         const url = options.handLandmarkerModelPath ?? VisionEngineDefaults.handLandmarkerModelPath;
 
-        const d0 = performance.now();
-        const buffer = await fetchModelBuffer(url);
-        const downloadMs = performance.now() - d0;
+        let baseOptions: { modelAssetPath: string } | { modelAssetBuffer: Uint8Array };
+        let downloadMs = 0;
+        if (performanceMonitor == null) {
+            baseOptions = { modelAssetPath: url };
+        } else {
+            const fetched = await measureAsync(() => fetchModelBuffer(url));
+            baseOptions = { modelAssetBuffer: fetched.value };
+            downloadMs = fetched.ms;
+        }
 
-        const l0 = performance.now();
-        this._handLandmarker = await HandLandmarker.createFromOptions(
-            visionTaskFileset,
-            {
-                baseOptions: { modelAssetBuffer: buffer },
-                numHands: options.numHands ?? VisionEngineDefaults.numHands,
-                runningMode: "VIDEO",
-            }
+        const { value: handLandmarker, ms: loadMs } = await measureAsync(() =>
+            HandLandmarker.createFromOptions(
+                visionTaskFileset,
+                {
+                    baseOptions,
+                    numHands: options.numHands ?? VisionEngineDefaults.numHands,
+                    runningMode: "VIDEO",
+                }
+            )
         );
-        const loadMs = performance.now() - l0;
+        this._handLandmarker = handLandmarker;
 
-        return { downloadMs, loadMs };
+        performanceMonitor?.recordHandModelInit(downloadMs, loadMs);
     };
 
     private loadPoseLandmarker = async (
         visionTaskFileset: any,
-        options: VisionEngineOptions
-    ): Promise<{ downloadMs: number; loadMs: number }> => {
+        options: VisionEngineOptions,
+        performanceMonitor: PerformanceMonitor | null
+    ): Promise<void> => {
         const url = options.poseLandmarkerModelPath ?? VisionEngineDefaults.poseLandmarkerModelPath;
 
-        const d0 = performance.now();
-        const buffer = await fetchModelBuffer(url);
-        const downloadMs = performance.now() - d0;
+        let baseOptions: { modelAssetPath: string } | { modelAssetBuffer: Uint8Array };
+        let downloadMs = 0;
+        if (performanceMonitor == null) {
+            baseOptions = { modelAssetPath: url };
+        } else {
+            const fetched = await measureAsync(() => fetchModelBuffer(url));
+            baseOptions = { modelAssetBuffer: fetched.value };
+            downloadMs = fetched.ms;
+        }
 
-        const l0 = performance.now();
-        this._poseLandmarker = await PoseLandmarker.createFromOptions(
-            visionTaskFileset,
-            {
-                baseOptions: { modelAssetBuffer: buffer },
-                runningMode: "VIDEO",
-            }
+        const { value: poseLandmarker, ms: loadMs } = await measureAsync(() =>
+            PoseLandmarker.createFromOptions(
+                visionTaskFileset,
+                {
+                    baseOptions,
+                    runningMode: "VIDEO",
+                }
+            )
         );
-        const loadMs = performance.now() - l0;
+        this._poseLandmarker = poseLandmarker;
 
-        return { downloadMs, loadMs };
+        performanceMonitor?.recordPoseModelInit(downloadMs, loadMs);
     };
 
     /**
@@ -360,6 +382,12 @@ export class VisionEngine {
 
         return rawLandmarks.map((landmarks, i) => landmarkFilters[i].filter(landmarks));
     }
+}
+
+async function measureAsync<T>(operation: () => Promise<T>): Promise<{ value: T; ms: number }> {
+    const start = performance.now();
+    const value = await operation();
+    return { value, ms: performance.now() - start };
 }
 
 async function fetchModelBuffer(url: string): Promise<Uint8Array> {
