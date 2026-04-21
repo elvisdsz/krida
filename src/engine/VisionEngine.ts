@@ -167,13 +167,15 @@ export class VisionEngine {
         options: VisionEngineOptions,
         performanceMonitor: PerformanceMonitor | null
     ): Promise<void> => {
+        const tasks: Promise<void>[] = [];
         if (options.handLandmarkerEnabled) {
-            await this.loadHandLandmarker(visionTaskFileset, options, performanceMonitor);
+            tasks.push(this.loadHandLandmarker(visionTaskFileset, options, performanceMonitor));
         }
 
         if (options.poseLandmarkerEnabled) {
-            await this.loadPoseLandmarker(visionTaskFileset, options, performanceMonitor);
+            tasks.push(this.loadPoseLandmarker(visionTaskFileset, options, performanceMonitor));
         }
+        await Promise.all(tasks);
     };
 
     private loadHandLandmarker = async (
@@ -203,6 +205,10 @@ export class VisionEngine {
                 }
             )
         );
+        if (this._isDestroyed) {
+            this.closeTask("hand landmarker", handLandmarker.close?.bind(handLandmarker));
+            return;
+        }
         this._handLandmarker = handLandmarker;
 
         performanceMonitor?.recordHandModelInit(downloadMs, loadMs);
@@ -234,6 +240,10 @@ export class VisionEngine {
                 }
             )
         );
+        if (this._isDestroyed) {
+            this.closeTask("pose landmarker", poseLandmarker.close?.bind(poseLandmarker));
+            return;
+        }
         this._poseLandmarker = poseLandmarker;
 
         performanceMonitor?.recordPoseModelInit(downloadMs, loadMs);
