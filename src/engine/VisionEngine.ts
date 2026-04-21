@@ -8,6 +8,7 @@ import {
 } from "@mediapipe/tasks-vision";
 import LandmarkFilter from "../filters/LandmarkFilter";
 import EMAFilter from "../filters/EMAFilter";
+import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 
 export interface HandTrackerResult extends HandLandmarkerResult {
     startTimeMs: number;
@@ -85,7 +86,10 @@ export class VisionEngine {
      * @throws If neither `handLandmarkerEnabled` nor `poseLandmarkerEnabled` is `true`.
      * @throws If any model fails to load.
      */
-    static async create(options: VisionEngineOptions): Promise<VisionEngine> {
+    static async create(
+        options: VisionEngineOptions,
+        performanceMonitor: PerformanceMonitor | null = null
+    ): Promise<VisionEngine> {
 
         if (!options.handLandmarkerEnabled && !options.poseLandmarkerEnabled) {
             throw new Error("VisionEngine: At least one of handLandmarkerEnabled or poseLandmarkerEnabled must be true.");
@@ -93,19 +97,17 @@ export class VisionEngine {
 
         const engine = new VisionEngine();
         engine._smoothingAlpha = options.smoothingAlpha ?? VisionEngineDefaults.smoothingAlpha;
+        const visionTaskFilesetPath = options.visionTaskFilesetPath ?? VisionEngineDefaults.visionTaskFilesetPath;
 
         try {
-            const vision = await FilesetResolver.forVisionTasks(
-                options.visionTaskFilesetPath ?? VisionEngineDefaults.visionTaskFilesetPath
+            const createStart = performance.now();
+            const { value: vision, ms: wasmFilesetInitMs } = await measureAsync(() =>
+                FilesetResolver.forVisionTasks(visionTaskFilesetPath)
             );
+            performanceMonitor?.recordWasmFilesetInit(wasmFilesetInitMs);
 
-            if (options.handLandmarkerEnabled) {
-                await engine.loadHandLandmarker(vision, options);
-            }
-
-            if (options.poseLandmarkerEnabled) {
-                await engine.loadPoseLandmarker(vision, options);
-            }
+            await engine.loadEnabledModels(vision, options, performanceMonitor);
+            performanceMonitor?.recordEngineInit(performance.now() - createStart);
         } catch (error) {
             engine.destroy();
             throw error;
@@ -160,29 +162,91 @@ export class VisionEngine {
         this.closeTask("pose landmarker", poseLandmarker?.close?.bind(poseLandmarker));
     };
 
-    private loadHandLandmarker = async (visionTaskFileset: any, options: VisionEngineOptions): Promise<void> => {
-        this._handLandmarker = await HandLandmarker.createFromOptions(
-            visionTaskFileset,
-            {
-                baseOptions: {
-                    modelAssetPath: options.handLandmarkerModelPath ?? VisionEngineDefaults.handLandmarkerModelPath,
-                },
-                numHands: options.numHands ?? VisionEngineDefaults.numHands,
-                runningMode: "VIDEO",
-            }
-        );
+    private loadEnabledModels = async (
+        visionTaskFileset: any,
+        options: VisionEngineOptions,
+        performanceMonitor: PerformanceMonitor | null
+    ): Promise<void> => {
+        const tasks: Promise<void>[] = [];
+        if (options.handLandmarkerEnabled) {
+            tasks.push(this.loadHandLandmarker(visionTaskFileset, options, performanceMonitor));
+        }
+
+        if (options.poseLandmarkerEnabled) {
+            tasks.push(this.loadPoseLandmarker(visionTaskFileset, options, performanceMonitor));
+        }
+        await Promise.all(tasks);
     };
 
-    private loadPoseLandmarker = async (visionTaskFileset: any, options: VisionEngineOptions): Promise<void> => {
-        this._poseLandmarker = await PoseLandmarker.createFromOptions(
-            visionTaskFileset,
-            {
-                baseOptions: {
-                    modelAssetPath: options.poseLandmarkerModelPath ?? VisionEngineDefaults.poseLandmarkerModelPath,
-                },
-                runningMode: "VIDEO",
-            }
+    private loadHandLandmarker = async (
+        visionTaskFileset: any,
+        options: VisionEngineOptions,
+        performanceMonitor: PerformanceMonitor | null
+    ): Promise<void> => {
+        const url = options.handLandmarkerModelPath ?? VisionEngineDefaults.handLandmarkerModelPath;
+
+        let baseOptions: { modelAssetPath: string } | { modelAssetBuffer: Uint8Array };
+        let downloadMs = 0;
+        if (performanceMonitor == null) {
+            baseOptions = { modelAssetPath: url };
+        } else {
+            const fetched = await measureAsync(() => fetchModelBuffer(url));
+            baseOptions = { modelAssetBuffer: fetched.value };
+            downloadMs = fetched.ms;
+        }
+
+        const { value: handLandmarker, ms: loadMs } = await measureAsync(() =>
+            HandLandmarker.createFromOptions(
+                visionTaskFileset,
+                {
+                    baseOptions,
+                    numHands: options.numHands ?? VisionEngineDefaults.numHands,
+                    runningMode: "VIDEO",
+                }
+            )
         );
+        if (this._isDestroyed) {
+            this.closeTask("hand landmarker", handLandmarker.close?.bind(handLandmarker));
+            return;
+        }
+        this._handLandmarker = handLandmarker;
+
+        performanceMonitor?.recordHandModelInit(downloadMs, loadMs);
+    };
+
+    private loadPoseLandmarker = async (
+        visionTaskFileset: any,
+        options: VisionEngineOptions,
+        performanceMonitor: PerformanceMonitor | null
+    ): Promise<void> => {
+        const url = options.poseLandmarkerModelPath ?? VisionEngineDefaults.poseLandmarkerModelPath;
+
+        let baseOptions: { modelAssetPath: string } | { modelAssetBuffer: Uint8Array };
+        let downloadMs = 0;
+        if (performanceMonitor == null) {
+            baseOptions = { modelAssetPath: url };
+        } else {
+            const fetched = await measureAsync(() => fetchModelBuffer(url));
+            baseOptions = { modelAssetBuffer: fetched.value };
+            downloadMs = fetched.ms;
+        }
+
+        const { value: poseLandmarker, ms: loadMs } = await measureAsync(() =>
+            PoseLandmarker.createFromOptions(
+                visionTaskFileset,
+                {
+                    baseOptions,
+                    runningMode: "VIDEO",
+                }
+            )
+        );
+        if (this._isDestroyed) {
+            this.closeTask("pose landmarker", poseLandmarker.close?.bind(poseLandmarker));
+            return;
+        }
+        this._poseLandmarker = poseLandmarker;
+
+        performanceMonitor?.recordPoseModelInit(downloadMs, loadMs);
     };
 
     /**
@@ -194,17 +258,24 @@ export class VisionEngine {
      * `performance.now()` is preferred but `video.currentTime` is also a valid source.
      * If a non-monotonic value is provided (for example from playback timeline time),
      * VisionEngine will internally coerce it to remain strictly increasing.
+     * @param performanceMonitor Optional performance monitor used to record
+     * hand and pose inference/filter timings for newly processed frames.
+     * Pass `null` to disable instrumentation.
      *
      * @returns Tracking result for the frame. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
      * @throws If called after {@link destroy}; a destroyed engine instance must not be reused.
      */
-    getTrackerResult = (video: HTMLVideoElement, startTimeMs: number): TrackerResult => {
+    getTrackerResult = (
+        video: HTMLVideoElement,
+        startTimeMs: number,
+        performanceMonitor: PerformanceMonitor | null = null
+    ): TrackerResult => {
         if (this._isDestroyed) {
             throw new Error("VisionEngine: getTrackerResult called after destroy(). Create a new VisionEngine instance.");
         }
 
-        const handResult = this.getHandResult(video, startTimeMs);
-        const poseResult = this.getPoseResult(video, startTimeMs);
+        const handResult = this.getHandResult(video, startTimeMs, performanceMonitor);
+        const poseResult = this.getPoseResult(video, startTimeMs, performanceMonitor);
 
         return {
             hand: handResult ?? undefined,
@@ -219,10 +290,16 @@ export class VisionEngine {
      * @param video The video element containing the current frame to process.
      * @param startTimeMs Timestamp in milliseconds for the current frame. A monotonic
      * source (for example `performance.now()`) is recommended.
+     * @param performanceMonitor Optional performance monitor used to record
+     * hand inference and filtering timings for newly processed frames.
      * 
      * @returns Detected landmarks (smoothed), or `null` if the hand landmarker was not enabled or the engine has been destroyed.
      */
-    private getHandResult = (video: HTMLVideoElement, startTimeMs: number): HandTrackerResult | null => {
+    private getHandResult = (
+        video: HTMLVideoElement,
+        startTimeMs: number,
+        performanceMonitor: PerformanceMonitor | null
+    ): HandTrackerResult | null => {
         if (this._handLandmarker == null) {
             return null;
         }
@@ -235,9 +312,13 @@ export class VisionEngine {
         const normalizedStartTimeMs = VisionEngine.getMonotonicStartTimeMs(startTimeMs, this._lastHandStartTimeMs);
         this._lastHandStartTimeMs = normalizedStartTimeMs;
 
+        const t0 = performance.now();
         const result = this._handLandmarker.detectForVideo(video, normalizedStartTimeMs);
+        performanceMonitor?.recordHandInference(performance.now() - t0);
 
+        const tf0 = performance.now();
         const smoothedLandmarks = this.filterLandmarks(result.landmarks, this._handLandmarkFilters);
+        performanceMonitor?.recordHandFilter(performance.now() - tf0);
 
         this._lastHandResult = {
             ...result,
@@ -255,10 +336,16 @@ export class VisionEngine {
      * @param video The video element containing the current frame to process.
      * @param startTimeMs Timestamp in milliseconds for the current frame. A monotonic
      * source (for example `performance.now()`) is recommended.
+     * @param performanceMonitor Optional performance monitor used to record
+     * pose inference and filtering timings for newly processed frames.
      * 
      * @returns Detected landmarks (smoothed), or `null` if the pose landmarker was not enabled or the engine has been destroyed.
      */
-    private getPoseResult = (video: HTMLVideoElement, startTimeMs: number): PoseTrackerResult | null => {
+    private getPoseResult = (
+        video: HTMLVideoElement,
+        startTimeMs: number,
+        performanceMonitor: PerformanceMonitor | null
+    ): PoseTrackerResult | null => {
         if (this._poseLandmarker == null) {
             return null;
         }
@@ -271,9 +358,13 @@ export class VisionEngine {
         const normalizedStartTimeMs = VisionEngine.getMonotonicStartTimeMs(startTimeMs, this._lastPoseStartTimeMs);
         this._lastPoseStartTimeMs = normalizedStartTimeMs;
 
+        const t0 = performance.now();
         const result = this._poseLandmarker.detectForVideo(video, normalizedStartTimeMs);
+        performanceMonitor?.recordPoseInference(performance.now() - t0);
 
+        const tf0 = performance.now();
         const smoothedLandmarks = this.filterLandmarks(result.landmarks, this._poseLandmarkFilters);
+        performanceMonitor?.recordPoseFilter(performance.now() - tf0);
 
         this._lastPoseResult = {
             ...result,
@@ -301,4 +392,18 @@ export class VisionEngine {
 
         return rawLandmarks.map((landmarks, i) => landmarkFilters[i].filter(landmarks));
     }
+}
+
+async function measureAsync<T>(operation: () => Promise<T>): Promise<{ value: T; ms: number }> {
+    const start = performance.now();
+    const value = await operation();
+    return { value, ms: performance.now() - start };
+}
+
+async function fetchModelBuffer(url: string): Promise<Uint8Array> {
+    const res = await fetch(url);
+    if (!res.ok) {
+        throw new Error(`VisionEngine: failed to fetch model from ${res.url || url}: ${res.status} ${res.statusText}`);
+    }
+    return new Uint8Array(await res.arrayBuffer());
 }

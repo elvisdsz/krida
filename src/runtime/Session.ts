@@ -1,6 +1,7 @@
 import type App from "../app/App";
 import { VisionEngine, type VisionEngineOptions } from "../engine/VisionEngine";
 import { RenderLoop, type RenderLoopOptions } from "../render/RenderLoop";
+import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 
 export interface SessionOptions {
     /** Automatically cleanup when the page is hidden or unloaded. Default: true. */
@@ -20,6 +21,11 @@ export interface SessionStartOptions {
     renderLoopOptions?: RenderLoopOptions;
     /** Media constraints for getUserMedia. Default: { video: true }. */
     mediaStreamConstraints?: MediaStreamConstraints;
+    /**
+     * Optional performance monitor. Receives session-wide metrics (camera acquire,
+     * engine init) as well as per-frame metrics from the underlying RenderLoop.
+     */
+    performanceMonitor?: PerformanceMonitor;
 }
 
 /**
@@ -81,9 +87,17 @@ export class Session {
             this.registerLifecycleListeners();
         }
 
+        const monitor = options.performanceMonitor ?? null;
+
         let stream: MediaStream | null = null;
         let visionEngine: VisionEngine | null = null;
         try {
+            const includedPermissionPrompt = monitor !== null
+                ? await this.cameraPermissionWillPrompt()
+                : false;
+            this.throwIfAborted(signal);
+            const cameraStart = performance.now();
+
             stream = await navigator.mediaDevices.getUserMedia(
                 options.mediaStreamConstraints ?? { video: true }
             );
@@ -92,11 +106,13 @@ export class Session {
             this._video.srcObject = stream;
             await this.waitForVideoData(this._video, signal);
 
+            monitor?.recordCameraAcquire(performance.now() - cameraStart, includedPermissionPrompt);
+
             options.canvas.width = this._video.videoWidth;
             options.canvas.height = this._video.videoHeight;
 
             this.throwIfAborted(signal);
-            visionEngine = await VisionEngine.create(options.visionEngineOptions);
+            visionEngine = await VisionEngine.create(options.visionEngineOptions, monitor);
             this.throwIfAborted(signal);
 
             // Commit all acquired resources — only reached if this call won the race.
@@ -105,7 +121,7 @@ export class Session {
             this._visionEngine = visionEngine;
             visionEngine = null;
 
-            this._renderLoop = new RenderLoop(this._visionEngine, options.renderLoopOptions);
+            this._renderLoop = new RenderLoop(this._visionEngine, options.renderLoopOptions, monitor);
             this._renderLoop.start(this._video, options.canvas, options.app);
         } catch (error) {
             visionEngine?.destroy();
@@ -187,6 +203,20 @@ export class Session {
             signal.addEventListener("abort", onAbort, { once: true });
         });
     };
+
+    private async cameraPermissionWillPrompt(): Promise<boolean> {
+        // Conservative default: if we cannot determine state, assume the call
+        // may prompt so consumers do not treat the number as pure machine time.
+        if (!navigator.permissions?.query) {
+            return true;
+        }
+        try {
+            const status = await navigator.permissions.query({ name: "camera" as PermissionName });
+            return status.state !== "granted";
+        } catch {
+            return true;
+        }
+    }
 
     private throwIfAborted(signal: AbortSignal): void {
         if (signal.aborted) {

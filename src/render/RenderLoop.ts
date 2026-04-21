@@ -1,6 +1,7 @@
 import { DrawingUtils, HandLandmarker, NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
 import { VisionEngine, HandTrackerResult, PoseTrackerResult, TrackerResult } from "../engine/VisionEngine";
 import App from "../app/App";
+import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 
 export interface RenderLoopOptions {
     /**
@@ -49,13 +50,20 @@ export class RenderLoop {
     private _drawingUtils: DrawingUtils | null = null;
     private _app: App | null = null;
     private readonly _visionEngine: VisionEngine;
+    private readonly _monitor: PerformanceMonitor | null;
+    private _lastAcceptedFrameTime: number = 0;
 
-    constructor(visionEngine: VisionEngine, options: RenderLoopOptions = {}) {
+    constructor(
+        visionEngine: VisionEngine,
+        options: RenderLoopOptions = {},
+        monitor: PerformanceMonitor | null = null
+    ) {
         this._visionEngine = visionEngine;
         const targetFPS = options.targetFPS !== undefined ? options.targetFPS : 30;
         this._frameInterval = targetFPS !== null ? 1000 / targetFPS : null;
         this._debugView = options.debugView ?? false;
         this._autoClear = options.autoClear ?? true;
+        this._monitor = monitor;
     }
 
     /**
@@ -68,14 +76,23 @@ export class RenderLoop {
      */
     start(video: HTMLVideoElement, canvas: HTMLCanvasElement, app: App): void {
         this.stop();
-        this._app = app;
-        this._app.onStart?.();
+        this._lastFrameTime = 0;
         this._lastVideoTime = -1;
+        this._lastAcceptedFrameTime = 0;
+        this._app = app;
+
+        try {
+            this._app.onStart?.();
+        } catch (error) {
+            this._app = null;
+            this._drawingUtils = null;
+            throw error;
+        }
 
         const drawFrame = (currentTime: number) => {
             const delta = currentTime - this._lastFrameTime;
             if (this._frameInterval == null || delta >= this._frameInterval) {
-                this.renderFrame(video, canvas);
+                this.renderFrame(video, canvas, currentTime);
                 this._lastFrameTime = currentTime;
             }
             this._frameId = requestAnimationFrame(drawFrame);
@@ -84,15 +101,25 @@ export class RenderLoop {
         this._frameId = requestAnimationFrame(drawFrame);
     }
 
-    /** Stop the render loop. Safe to call when already stopped. */
+    /**
+     * Stop the render loop. Safe to call when already stopped.
+     *
+     * @throws If the active app's `onStop` throws. Loop state is fully cleared
+     * before the throw propagates, so the loop is safe to restart via
+     * {@link start} afterwards.
+     */
     stop(): void {
+        const app = this._frameId !== null ? this._app : null;
+
         if (this._frameId !== null) {
             cancelAnimationFrame(this._frameId);
             this._frameId = null;
-            this._app?.onStop?.();
         }
+
         this._app = null;
         this._drawingUtils = null;
+
+        app?.onStop?.();
     }
 
     /**
@@ -103,16 +130,41 @@ export class RenderLoop {
         this.stop();
         this._lastFrameTime = 0;
         this._lastVideoTime = -1;
+        this._lastAcceptedFrameTime = 0;
     }
 
-    /** Swap the active app without restarting the loop. */
+    /**
+     * Swap the active app without restarting the loop.
+     *
+     * @throws If either the outgoing app's `onStop` or the incoming app's
+     * `onStart` throws. In that case the loop is stopped entirely and must be
+     * restarted via {@link start} before it will produce frames again.
+     */
     setApp(app: App): void {
-        if (this.isRunning) {
-            this._app?.onStop?.();
+        const isRunning = this.isRunning;
+
+        if (isRunning) {
+            try {
+                this._app?.onStop?.();
+            } catch (error) {
+                this._app = null;
+                this.stop();
+                throw error;
+            }
         }
+
         this._app = app;
-        if (this.isRunning) {
+
+        if (!isRunning) {
+            return;
+        }
+
+        try {
             this._app.onStart?.();
+        } catch (error) {
+            this._app = null;
+            this.stop();
+            throw error;
         }
     }
 
@@ -143,7 +195,7 @@ export class RenderLoop {
 
     // ── Private helpers ──────────────────────────────────────────────────────
 
-    private renderFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement): void {
+    private renderFrame(video: HTMLVideoElement, canvas: HTMLCanvasElement, currentTime: number): void {
         const ctx = canvas.getContext("2d");
         if (!ctx || !this._app) return;
 
@@ -153,9 +205,14 @@ export class RenderLoop {
         if (this._lastVideoTime === video.currentTime) return;
         this._lastVideoTime = video.currentTime;
 
-        const startTimeMs = performance.now();
+        if (this._lastAcceptedFrameTime > 0) {
+            this._monitor?.recordFrameTime(currentTime - this._lastAcceptedFrameTime);
+        }
+        this._lastAcceptedFrameTime = currentTime;
 
-        const trackerResult: TrackerResult = this._visionEngine.getTrackerResult(video, startTimeMs);
+        const frameStart = performance.now();
+
+        const trackerResult: TrackerResult = this._visionEngine.getTrackerResult(video, frameStart, this._monitor);
 
         this._app.draw(ctx, trackerResult);
 
