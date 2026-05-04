@@ -56,6 +56,7 @@ async function main() {
             visionTaskFilesetPath: WASM_PATH,
             handLandmarkerModelPath: HAND_LANDMARKER_MODEL_PATH,
             poseLandmarkerModelPath: POSE_LANDMARKER_MODEL_PATH,
+            delegate: "GPU",
         },
         renderLoopOptions: {
             debugView: true,
