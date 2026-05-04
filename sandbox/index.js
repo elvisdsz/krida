@@ -1,7 +1,7 @@
 import { Session, PerformanceMonitor } from "../dist/index.mjs";
 
 const WASM_PATH =
-    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.32/wasm";
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
 const HAND_LANDMARKER_MODEL_PATH =
     "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task";
 const POSE_LANDMARKER_MODEL_PATH =
