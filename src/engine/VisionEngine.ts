@@ -117,6 +117,7 @@ export class VisionEngine {
             throw error;
         }
 
+        performanceMonitor?.setRequestedDelegate(options.delegate ?? VisionEngineDefaults.delegate);
         return engine;
     }
 

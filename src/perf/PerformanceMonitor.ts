@@ -41,6 +41,8 @@ export interface PerformanceSnapshot {
     label: string;
     capturedAt: string;
     windowSize: number;
+    webGL2Available: boolean;
+    requestedDelegate: "CPU" | "GPU" | "unknown";
     cameraAcquire: CameraAcquireMetric | null;
     /**
      * Time for FilesetResolver.forVisionTasks to resolve: WASM fetch + compile + instantiate,
@@ -146,13 +148,15 @@ export class PerformanceMonitor {
 
     readonly label: string;
     readonly windowSize: number;
-
+    private readonly _webGL2Available: boolean = !!window.WebGL2RenderingContext;
+    
     private readonly _frameTime: MetricSeries;
     private readonly _handInference: MetricSeries;
     private readonly _poseInference: MetricSeries;
     private readonly _handFilter: MetricSeries;
     private readonly _poseFilter: MetricSeries;
-
+    
+    private _requestedDelegate: "CPU" | "GPU" | "unknown" = "unknown";
     private _cameraAcquire: CameraAcquireMetric | null = null;
     private _wasmFilesetInitMs: number | null = null;
     private _handModelInit: ModelInitMetric | null = null;
@@ -172,6 +176,10 @@ export class PerformanceMonitor {
         this._poseInference = new MetricSeries(this.windowSize);
         this._handFilter = new MetricSeries(this.windowSize);
         this._poseFilter = new MetricSeries(this.windowSize);
+    }
+
+    setRequestedDelegate(delegate: "CPU" | "GPU"): void {
+        this._requestedDelegate = delegate;
     }
 
     recordFrameTime(ms: number): void {
@@ -223,6 +231,8 @@ export class PerformanceMonitor {
             label: this.label,
             capturedAt: new Date().toISOString(),
             windowSize: this.windowSize,
+            webGL2Available: this._webGL2Available,
+            requestedDelegate: this._requestedDelegate,
             cameraAcquire: this._cameraAcquire,
             wasmFilesetInitMs: this._wasmFilesetInitMs,
             handModelInit: this._handModelInit,
@@ -239,6 +249,7 @@ export class PerformanceMonitor {
 
     /** Reset all collected metrics. */
     reset(): void {
+        this._requestedDelegate = "unknown";
         this._frameTime.reset();
         this._handInference.reset();
         this._poseInference.reset();
