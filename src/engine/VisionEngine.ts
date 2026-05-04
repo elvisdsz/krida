@@ -25,14 +25,16 @@ export interface TrackerResult {
 
 /** Default values for {@link VisionEngineOptions}. */
 export const VisionEngineDefaults = {
-    /** EMA smoothing factor for landmarks. (0, 1]. Lower = smoother. */
-    smoothingAlpha: 0.35,
     /** Path to directory containing MediaPipe vision task WASM files. */
     visionTaskFilesetPath: "/models/tasks-vision-wasm",
     /** Path to the hand landmarker model file. */
     handLandmarkerModelPath: "/models/hand_landmarker.task",
     /** Path to the pose landmarker model file. */
     poseLandmarkerModelPath: "/models/pose_landmarker.task",
+    /** Delegate to use for model inference. */
+    delegate: "CPU",
+    /** EMA smoothing factor for landmarks. (0, 1]. Lower = smoother. */
+    smoothingAlpha: 0.35,
     /** Maximum number of hands to detect. */
     numHands: 2,
 } as const satisfies Partial<VisionEngineOptions>;
@@ -48,6 +50,8 @@ export interface VisionEngineOptions {
     handLandmarkerModelPath?: string;
     /** Path to the pose landmarker model file (.task). Default: {@link VisionEngineDefaults.poseLandmarkerModelPath} */
     poseLandmarkerModelPath?: string;
+    /** Delegate to use for model inference. Default: {@link VisionEngineDefaults.delegate} */
+    delegate?: "CPU" | "GPU";
     /** EMA smoothing factor for landmarks. (0, 1]. Lower = smoother. Default: {@link VisionEngineDefaults.smoothingAlpha} */
     smoothingAlpha?: number;
     /** Maximum number of hands to detect (1 or 2). Default: {@link VisionEngineDefaults.numHands} */
@@ -185,13 +189,13 @@ export class VisionEngine {
     ): Promise<void> => {
         const url = options.handLandmarkerModelPath ?? VisionEngineDefaults.handLandmarkerModelPath;
 
-        let baseOptions: { modelAssetPath: string } | { modelAssetBuffer: Uint8Array };
+        let baseOptions: { delegate?: "CPU" | "GPU" } & ({ modelAssetPath: string } | { modelAssetBuffer: Uint8Array});
         let downloadMs = 0;
         if (performanceMonitor == null) {
-            baseOptions = { modelAssetPath: url };
+            baseOptions = { modelAssetPath: url, delegate: options.delegate ?? VisionEngineDefaults.delegate };
         } else {
             const fetched = await measureAsync(() => fetchModelBuffer(url));
-            baseOptions = { modelAssetBuffer: fetched.value };
+            baseOptions = { modelAssetBuffer: fetched.value, delegate: options.delegate ?? VisionEngineDefaults.delegate };
             downloadMs = fetched.ms;
         }
 
@@ -221,13 +225,13 @@ export class VisionEngine {
     ): Promise<void> => {
         const url = options.poseLandmarkerModelPath ?? VisionEngineDefaults.poseLandmarkerModelPath;
 
-        let baseOptions: { modelAssetPath: string } | { modelAssetBuffer: Uint8Array };
+        let baseOptions: { delegate?: "CPU" | "GPU" } & ({ modelAssetPath: string } | { modelAssetBuffer: Uint8Array});
         let downloadMs = 0;
         if (performanceMonitor == null) {
-            baseOptions = { modelAssetPath: url };
+            baseOptions = { modelAssetPath: url, delegate: options.delegate ?? VisionEngineDefaults.delegate };
         } else {
             const fetched = await measureAsync(() => fetchModelBuffer(url));
-            baseOptions = { modelAssetBuffer: fetched.value };
+            baseOptions = { modelAssetBuffer: fetched.value, delegate: options.delegate ?? VisionEngineDefaults.delegate };
             downloadMs = fetched.ms;
         }
 
