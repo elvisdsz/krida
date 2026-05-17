@@ -138,4 +138,4 @@ See [`sandbox/`](sandbox/) for a minimal working implementation with hand-tracki
 
 ## License
 
-MIT
+[MIT](LICENSE)
