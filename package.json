@@ -1,7 +1,7 @@
 {
   "name": "krida",
   "version": "0.0.1",
-  "description": "An interactive experience development engine. Work in progress.",
+  "description": "An engine for building interactive experiences with real-time camera-based tracking.",
   "author": "Elvis Dsouza",
   "license": "MIT",
   "main": "dist/index.js",
