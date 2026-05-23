@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Krida</title>
+  <meta name="description" content="Krida — engine for building interactive experiences with real-time camera-based tracking." />
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+      color: #24292f;
+      background: #ffffff;
+    }
+    h1, h2, h3 { font-weight: 600; margin-top: 1.5em; margin-bottom: 0.5em; }
+    h1 { font-size: 2em; border-bottom: 1px solid #d0d7de; padding-bottom: 0.3em; }
+    h2 { font-size: 1.5em; border-bottom: 1px solid #d0d7de; padding-bottom: 0.3em; }
+    h3 { font-size: 1.25em; }
+    a { color: #0969da; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.875em;
+      background: #f6f8fa;
+      border: 1px solid #d0d7de;
+      border-radius: 4px;
+      padding: 0.15em 0.4em;
+    }
+    pre {
+      background: #f6f8fa;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      padding: 1em 1.25em;
+      overflow-x: auto;
+    }
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 0.875em;
+    }
+    blockquote {
+      margin: 0;
+      padding: 0.5em 1em;
+      color: #57606a;
+      border-left: 4px solid #d0d7de;
+    }
+    blockquote p { margin: 0; }
+    ul, ol { padding-left: 2em; }
+    li { margin: 0.25em 0; }
+    hr { border: none; border-top: 1px solid #d0d7de; margin: 1.5em 0; }
+    p { margin: 0.75em 0; }
+  </style>
+</head>
+<body>
+
+  <h1>Krida</h1>
+  <p>An engine for building interactive experiences with real-time camera-based tracking.</p>
+  <blockquote><p><strong>Status:</strong> v0.x — API may change between releases.</p></blockquote>
+
+  <h2>Overview</h2>
+  <p>Implement <code>App</code>, pass a <code>&lt;video&gt;</code> and <code>&lt;canvas&gt;</code> to <code>Session</code>, and receive per-frame tracking data in your <code>draw()</code> callback. Session manages webcam setup, model loading, and cleanup. Tracking currently runs on MediaPipe models; additional backend support is planned.</p>
+
+  <h2>Installation</h2>
+  <pre><code>npm install krida @mediapipe/tasks-vision</code></pre>
+  <blockquote><p>MediaPipe model files and WASM bundle must be served — see <a href="https://github.com/elvisdsz/krida/tree/main/sandbox" target="_blank" rel="noopener noreferrer"><code>sandbox/</code></a> for a CDN-based example.</p></blockquote>
+
+  <h2>Quick Start</h2>
+  <pre><code>import { Session, type App } from "krida";
+
+const video = document.querySelector("video") as HTMLVideoElement;
+const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+
+const app: App = {
+  name: "My App",
+  draw(ctx, result) {
+    for (const hand of result.hand?.landmarks ?? []) {
+      const tip = hand[8]; // index finger tip
+      ctx.fillRect(tip.x * canvas.width, tip.y * canvas.height, 4, 4);
+    }
+  },
+};
+
+const session = new Session();
+await session.start({
+  video,
+  canvas,
+  app,
+  visionEngineOptions: {
+    handLandmarkerEnabled: true,
+    visionTaskFilesetPath: "/models/tasks-vision-wasm",
+    handLandmarkerModelPath: "/models/hand_landmarker.task",
+  },
+});</code></pre>
+
+  <p>Minimal HTML:</p>
+  <pre><code>&lt;video autoplay playsinline muted&gt;&lt;/video&gt;
+&lt;canvas&gt;&lt;/canvas&gt;</code></pre>
+
+  <p>Krida runs in the browser and uses <code>getUserMedia()</code>, so camera access requires a secure context such as <code>https://</code> or <code>http://localhost</code>.</p>
+
+  <h2>Core Concepts</h2>
+  <p><strong><code>App</code></strong> — the interface you implement. Provide a <code>name</code>, a <code>draw(ctx, trackerResult)</code> method called each frame, and optional <code>onStart</code> / <code>onStop</code> lifecycle hooks.</p>
+  <p><strong><code>Session</code></strong> — top-level orchestrator. Acquires the webcam, initializes <code>VisionEngine</code> and <code>RenderLoop</code>, and manages cleanup on page hide/unload.</p>
+  <p><strong><code>VisionEngine</code></strong> — runs tracking inference each frame, caches per-frame results, and smooths landmark output via built-in filtering.</p>
+  <p><strong><code>RenderLoop</code></strong> — render loop that calls <code>App.draw()</code> each frame with the latest tracking results. Supports a configurable FPS cap and an optional debug overlay.</p>
+
+  <h2>API Reference</h2>
+
+  <h3>Session</h3>
+  <pre><code>new Session(options?: SessionOptions)
+session.start(options: SessionStartOptions): Promise&lt;void&gt;
+session.destroy(): void</code></pre>
+  <p><code>SessionOptions.autoCleanupOnPageLifecycle</code> (default: <code>true</code>) — automatically calls <code>destroy()</code> when the page is hidden or unloaded.</p>
+  <p><code>SessionStartOptions</code> requires <code>video</code>, <code>canvas</code>, <code>app</code>, and <code>visionEngineOptions</code>. Pass <code>renderLoopOptions</code>, <code>mediaStreamConstraints</code>, or <code>performanceMonitor</code> to customize further.</p>
+
+  <hr />
+
+  <h3>VisionEngine</h3>
+  <p>Created internally by <code>Session</code>, or directly via <code>VisionEngine.create(options)</code>.</p>
+  <p>Key options:</p>
+  <ul>
+    <li><code>handLandmarkerEnabled</code> / <code>poseLandmarkerEnabled</code> — at least one must be <code>true</code></li>
+    <li><code>visionTaskFilesetPath</code> — path to the MediaPipe WASM bundle (default: <code>"/models/tasks-vision-wasm"</code>)</li>
+    <li><code>handLandmarkerModelPath</code> / <code>poseLandmarkerModelPath</code> — <code>.task</code> model file paths (defaults: <code>"/models/hand_landmarker.task"</code>, <code>"/models/pose_landmarker.task"</code>)</li>
+    <li><code>delegate</code> — inference backend: <code>"CPU"</code> or <code>"GPU"</code> (default: <code>"CPU"</code>; GPU requires WebGL2)</li>
+    <li><code>smoothingAlpha</code> — EMA smoothing factor <code>(0, 1]</code>; lower = smoother (default: <code>0.35</code>)</li>
+    <li><code>numHands</code> — max hands to detect, <code>1</code> or <code>2</code> (default: <code>2</code>); only used by hand landmarker</li>
+  </ul>
+
+  <hr />
+
+  <h3>RenderLoop</h3>
+  <pre><code>new RenderLoop(visionEngine, options?: RenderLoopOptions)</code></pre>
+  <ul>
+    <li><code>targetFPS</code> — cap render rate; <code>null</code> for uncapped (default: <code>30</code>)</li>
+    <li><code>debugView</code> — overlay landmark connections and labels (default: <code>false</code>)</li>
+    <li><code>autoClear</code> — clear canvas before each frame (default: <code>true</code>)</li>
+  </ul>
+
+  <hr />
+
+  <h3>App Interface</h3>
+  <pre><code>interface App {
+  name: string;
+  draw(ctx: CanvasRenderingContext2D, result: TrackerResult): void;
+  onStart?(): void;
+  onStop?(): void;
+}</code></pre>
+  <p><code>TrackerResult.hand</code> contains per-hand <code>landmarks</code> arrays (normalized <code>{x, y, z}</code> points). <code>TrackerResult.pose</code> contains pose landmark data. Both may be <code>undefined</code> if the respective tracker is disabled.</p>
+
+  <hr />
+
+  <h3>PerformanceMonitor</h3>
+  <pre><code>new PerformanceMonitor(options?: PerformanceMonitorOptions)
+monitor.snapshot(): PerformanceSnapshot</code></pre>
+  <p>Pass a <code>PerformanceMonitor</code> instance to <code>session.start()</code>. Call <code>snapshot()</code> at any time to get metrics such as <code>actualFPS</code>, <code>frameTime</code>, <code>handInference</code>, <code>poseInference</code>, model init timings, and more.</p>
+
+  <h2>Examples</h2>
+  <p>See <a href="https://github.com/elvisdsz/krida/tree/main/sandbox" target="_blank" rel="noopener noreferrer"><code>sandbox/</code></a> for a minimal working implementation with hand-tracking, pose-tracking, debug overlay, performance monitor, and CDN-hosted models.</p>
+
+  <h2>License</h2>
+  <p><a href="https://github.com/elvisdsz/krida/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT</a></p>
+
+</body>
+</html>
