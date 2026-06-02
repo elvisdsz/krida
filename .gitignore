@@ -143,3 +143,5 @@ notes/
 .vscode/
 .claude/
 .idea/
+
+.npmrc
