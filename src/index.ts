@@ -14,3 +14,8 @@ export type { default as LandmarkFilter } from "./filters/LandmarkFilter";
 
 export { PerformanceMonitor } from "./perf/PerformanceMonitor";
 export type { PerformanceMonitorOptions, PerformanceSnapshot, MetricStats, CameraAcquireMetric, ModelInitMetric } from "./perf/PerformanceMonitor";
+
+export { GestureDetector } from "./gestures/GestureDetector";
+export type { GestureState, GestureOptions, GestureReading } from "./gestures/GestureDetector";
+export { GestureMap } from "./gestures/GestureMap";
+export { PinchDetector } from "./gestures/PinchDetector";

@@ -66,6 +66,8 @@ export interface PerformanceSnapshot {
     poseInference: MetricStats | null;
     handFilter: MetricStats | null;
     poseFilter: MetricStats | null;
+    handPostProcessing: MetricStats | null;
+    posePostProcessing: MetricStats | null;
 }
 
 export interface PerformanceMonitorOptions {
@@ -155,6 +157,8 @@ export class PerformanceMonitor {
     private readonly _poseInference: MetricSeries;
     private readonly _handFilter: MetricSeries;
     private readonly _poseFilter: MetricSeries;
+    private readonly _handPostProcessing: MetricSeries;
+    private readonly _posePostProcessing: MetricSeries;
     
     private _requestedDelegate: "CPU" | "GPU" | "unknown" = "unknown";
     private _cameraAcquire: CameraAcquireMetric | null = null;
@@ -176,6 +180,8 @@ export class PerformanceMonitor {
         this._poseInference = new MetricSeries(this.windowSize);
         this._handFilter = new MetricSeries(this.windowSize);
         this._poseFilter = new MetricSeries(this.windowSize);
+        this._handPostProcessing = new MetricSeries(this.windowSize);
+        this._posePostProcessing = new MetricSeries(this.windowSize);
     }
 
     setRequestedDelegate(delegate: "CPU" | "GPU"): void {
@@ -200,6 +206,14 @@ export class PerformanceMonitor {
 
     recordPoseFilter(ms: number): void {
         this._poseFilter.record(ms);
+    }
+
+    recordHandPostProcessing(ms: number): void {
+        this._handPostProcessing.record(ms);
+    }
+
+    recordPosePostProcessing(ms: number): void {
+        this._posePostProcessing.record(ms);
     }
 
     recordCameraAcquire(ms: number, includedPermissionPrompt: boolean): void {
@@ -244,6 +258,8 @@ export class PerformanceMonitor {
             poseInference: this._poseInference.count > 0 ? this._poseInference.stats() : null,
             handFilter: this._handFilter.count > 0 ? this._handFilter.stats() : null,
             poseFilter: this._poseFilter.count > 0 ? this._poseFilter.stats() : null,
+            handPostProcessing: this._handPostProcessing.count > 0 ? this._handPostProcessing.stats() : null,
+            posePostProcessing: this._posePostProcessing.count > 0 ? this._posePostProcessing.stats() : null,
         };
     }
 
@@ -255,6 +271,8 @@ export class PerformanceMonitor {
         this._poseInference.reset();
         this._handFilter.reset();
         this._poseFilter.reset();
+        this._handPostProcessing.reset();
+        this._posePostProcessing.reset();
         this._cameraAcquire = null;
         this._wasmFilesetInitMs = null;
         this._handModelInit = null;
