@@ -420,6 +420,11 @@ export class VisionEngine {
      * Grows the filter array as needed and resets filters for indices no longer present.
      */
     private filterLandmarks(rawLandmarks: NormalizedLandmark[][], landmarkFilters: LandmarkFilter[]): NormalizedLandmark[][] {
+        if (this._smoothingAlpha === 1) {
+            // No smoothing requested; return raw landmarks
+            return rawLandmarks;
+        }
+
         const count = rawLandmarks.length;
 
         while (landmarkFilters.length < count) {
