@@ -9,13 +9,18 @@ import {
 import LandmarkFilter from "../filters/LandmarkFilter";
 import EMAFilter from "../filters/EMAFilter";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
+import { GestureDetector } from "../gestures/GestureDetector";
+import { GestureMap } from "../gestures/GestureMap";
+import { GestureProcessor } from "../gestures/GestureProcessor";
 
 export interface HandTrackerResult extends HandLandmarkerResult {
     startTimeMs: number;
+    gestures?: GestureMap;
 }
 
 export interface PoseTrackerResult extends PoseLandmarkerResult {
     startTimeMs: number;
+    gestures?: GestureMap;
 }
 
 export interface TrackerResult {
@@ -56,6 +61,10 @@ export interface VisionEngineOptions {
     smoothingAlpha?: number;
     /** Maximum number of hands to detect (1 or 2). Default: {@link VisionEngineDefaults.numHands} */
     numHands?: number;
+    /** Optional array of gesture detectors to run on hand tracking results. */
+    handGestureDetectors?: GestureDetector<HandTrackerResult>[];
+    /** Optional array of gesture detectors to run on pose tracking results. */
+    poseGestureDetectors?: GestureDetector<PoseTrackerResult>[];
 }
 
 export class VisionEngine {
@@ -77,6 +86,10 @@ export class VisionEngine {
     private _poseLandmarkFilters: LandmarkFilter[] = [];
 
     private _smoothingAlpha: number = VisionEngineDefaults.smoothingAlpha;
+
+    /** Post-processors. */
+    private _handGestureProcessor: GestureProcessor<HandTrackerResult> | null = null;
+    private _poseGestureProcessor: GestureProcessor<PoseTrackerResult> | null = null;
 
     private constructor() {}
 
@@ -102,6 +115,14 @@ export class VisionEngine {
         const engine = new VisionEngine();
         engine._smoothingAlpha = options.smoothingAlpha ?? VisionEngineDefaults.smoothingAlpha;
         const visionTaskFilesetPath = options.visionTaskFilesetPath ?? VisionEngineDefaults.visionTaskFilesetPath;
+
+        // Set up gesture processor if any detectors are provided
+        if (options.handGestureDetectors) {
+            engine._handGestureProcessor = new GestureProcessor(options.handGestureDetectors);
+        }
+        if (options.poseGestureDetectors) {
+            engine._poseGestureProcessor = new GestureProcessor(options.poseGestureDetectors);
+        }
 
         try {
             const createStart = performance.now();
@@ -331,6 +352,13 @@ export class VisionEngine {
             startTimeMs: normalizedStartTimeMs,
         } as HandTrackerResult;
 
+        // Post-process tracker results
+        const tpp0 = performance.now();
+        if (this._handGestureProcessor) {
+            this._lastHandResult.gestures = this._handGestureProcessor.process(this._lastHandResult);
+        }
+        performanceMonitor?.recordHandPostProcessing(performance.now() - tpp0);
+
         return this._lastHandResult;
     };
 
@@ -376,6 +404,13 @@ export class VisionEngine {
             landmarks: smoothedLandmarks,
             startTimeMs: normalizedStartTimeMs,
         } as PoseTrackerResult;
+
+        // Post-process tracker results
+        const tpp0 = performance.now();
+        if (this._poseGestureProcessor) {
+            this._lastPoseResult.gestures = this._poseGestureProcessor.process(this._lastPoseResult);
+        }
+        performanceMonitor?.recordPosePostProcessing(performance.now() - tpp0);
 
         return this._lastPoseResult;
     };

@@ -1,4 +1,4 @@
-import { Session, PerformanceMonitor } from "../dist/index.mjs";
+import { Session, PerformanceMonitor, PinchDetector } from "../dist/index.mjs";
 
 const WASM_PATH =
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
@@ -19,9 +19,6 @@ const runLabel = params.get("run") ?? "sandbox";
 const monitor = new PerformanceMonitor({ label: runLabel, windowSize: 300 });
 let hudInterval = null;
 
-// Landmark indices for all five fingertips (MediaPipe hand model)
-const FINGERTIPS = [4, 8, 12, 16, 20];
-
 const pointerApp = {
     name: "Pointer",
     onStart() {
@@ -31,14 +28,13 @@ const pointerApp = {
         status.textContent = "Session stopped.";
     },
     draw(ctx, trackerResult) {
-        for (const hand of trackerResult.hand?.landmarks || []) {
-            for (const i of FINGERTIPS) {
-                const { x, y } = hand[i];
-                ctx.beginPath();
-                ctx.arc(x * canvas.width, y * canvas.height, 12, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(255, 120, 0, 0.85)";
-                ctx.fill();
-            }
+        const pinch = trackerResult.hand?.gestures?.get("pinch");
+        if (pinch) {
+            const { x, y } = pinch.position ?? { x: 0, y: 0 };
+            ctx.beginPath();
+            ctx.arc(x * canvas.width, y * canvas.height, 12, 0, Math.PI * 2);
+            ctx.fillStyle = pinch.isActive ? "rgba(255, 120, 0, 0.85)" : "rgba(17, 192, 26, 0.5)";
+            ctx.fill();
         }
     },
 };
@@ -52,11 +48,14 @@ async function main() {
         app: pointerApp,
         visionEngineOptions: {
             handLandmarkerEnabled: true,
-            poseLandmarkerEnabled: true,
+            poseLandmarkerEnabled: false,
             visionTaskFilesetPath: WASM_PATH,
             handLandmarkerModelPath: HAND_LANDMARKER_MODEL_PATH,
             poseLandmarkerModelPath: POSE_LANDMARKER_MODEL_PATH,
             delegate: "GPU",
+            handGestureDetectors: [
+                new PinchDetector(),
+            ],
         },
         renderLoopOptions: {
             debugView: true,
