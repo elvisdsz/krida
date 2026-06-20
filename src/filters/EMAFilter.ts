@@ -14,13 +14,11 @@ import LandmarkFilter from "./LandmarkFilter";
  */
 class EMAFilter implements LandmarkFilter {
 
-    private static readonly DEFAULT_ALPHA = 0.45;
-
     private _previous: NormalizedLandmark[] | null = null;
     private readonly _alpha: number;
 
-    constructor(alpha: number = EMAFilter.DEFAULT_ALPHA) {
-        if (alpha <= 0 || alpha > 1) {
+    constructor(alpha: number) {
+        if (alpha === undefined || alpha <= 0 || alpha > 1) {
             throw new RangeError(`EMAFilter alpha must be in (0, 1]. Received: ${alpha}`);
         }
         this._alpha = alpha;
