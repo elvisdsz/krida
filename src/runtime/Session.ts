@@ -1,6 +1,6 @@
 import type App from "../app/App";
 import { VisionEngine, type VisionEngineOptions } from "../engine/VisionEngine";
-import { RenderLoop, type RenderLoopOptions } from "../render/RenderLoop";
+import { FrameLoop, type FrameLoopOptions } from "../loop/FrameLoop";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 
 export interface SessionOptions {
@@ -11,14 +11,14 @@ export interface SessionOptions {
 export interface SessionStartOptions {
     /** Video element that receives webcam frames. */
     video: HTMLVideoElement;
-    /** Canvas element used for app rendering. */
-    canvas: HTMLCanvasElement;
     /** App that receives per-frame tracker results. */
     app: App;
     /** VisionEngine initialization options. */
     visionEngineOptions: VisionEngineOptions;
-    /** RenderLoop options used to construct RenderLoop. */
-    renderLoopOptions?: RenderLoopOptions;
+    /** FrameLoop options used to construct FrameLoop. */
+    frameLoopOptions?: FrameLoopOptions;
+    /** Enable visual debug view. */
+    debugView?: boolean;
     /** Media constraints for getUserMedia. Default: { video: true }. */
     mediaStreamConstraints?: MediaStreamConstraints;
     /**
@@ -36,7 +36,6 @@ export interface SessionStartOptions {
  * const kridaSession = new Session();
  * await kridaSession.start({
  *   video,
- *   canvas,
  *   app,
  *   visionEngineOptions: { handLandmarkerEnabled: true, poseLandmarkerEnabled: true },
  * });
@@ -50,7 +49,7 @@ export class Session {
     private _visionEngine: VisionEngine | null = null;
     private readonly _autoCleanupOnPageLifecycle: boolean;
 
-    private _renderLoop: RenderLoop | null = null;
+    private _frameLoop: FrameLoop | null = null;
     private _video: HTMLVideoElement | null = null;
     private _stream: MediaStream | null = null;
     private _startupAbortController: AbortController | null = null;
@@ -67,11 +66,11 @@ export class Session {
 
     /** Returns true when a loop exists and is currently running. */
     get isRunning(): boolean {
-        return this._renderLoop?.isRunning ?? false;
+        return this._frameLoop?.isRunning ?? false;
     }
 
     /**
-     * Start camera streaming, initialize the engine, and begin rendering.
+     * Start camera streaming and initialize the engine.
      * Any previously running session is destroyed first.
      */
     start = async (options: SessionStartOptions): Promise<void> => {
@@ -108,9 +107,6 @@ export class Session {
 
             monitor?.recordCameraAcquire(performance.now() - cameraStart, includedPermissionPrompt);
 
-            options.canvas.width = this._video.videoWidth;
-            options.canvas.height = this._video.videoHeight;
-
             this.throwIfAborted(signal);
             visionEngine = await VisionEngine.create(options.visionEngineOptions, monitor);
             this.throwIfAborted(signal);
@@ -121,8 +117,35 @@ export class Session {
             this._visionEngine = visionEngine;
             visionEngine = null;
 
-            this._renderLoop = new RenderLoop(this._visionEngine, options.renderLoopOptions, monitor);
-            this._renderLoop.start(this._video, options.canvas, options.app);
+            let frameLoopOptions: FrameLoopOptions | undefined = options.frameLoopOptions;
+
+            // Create a debugCanvas if required but an existing one was not provided via frameLoopOptions.
+            if (options.debugView && !frameLoopOptions?.debugCanvas) {
+                // Ensure frameLoopOptions exists
+                frameLoopOptions ??= {};
+
+                const debugCanvas: HTMLCanvasElement = document.createElement('canvas');
+                Object.assign(debugCanvas.style, {
+                    position: "absolute",
+                    top: "0",
+                    left: "0",
+                    width: "100%",
+                    height: "100%",
+                    pointerEvents: "none",
+                });
+                this._video.parentElement?.appendChild(debugCanvas);
+                frameLoopOptions.debugCanvas = debugCanvas;
+            }
+
+            if (frameLoopOptions && frameLoopOptions.debugCanvas) {
+                frameLoopOptions.debugCanvas.width = this._video.videoWidth;
+                frameLoopOptions.debugCanvas.height = this._video.videoHeight;
+            }
+
+            this._frameLoop = new FrameLoop(this._visionEngine, frameLoopOptions, monitor);
+            this._frameLoop.start(this._video, options.app.updateTracker.bind(options.app));
+
+            options.app.onStart?.();
         } catch (error) {
             visionEngine?.destroy();
             if (stream) {
@@ -149,8 +172,10 @@ export class Session {
         this._startupAbortController?.abort();
         this._startupAbortController = null;
 
-        this._renderLoop?.destroy();
-        this._renderLoop = null;
+        // TODO: Call App.onStop()
+
+        this._frameLoop?.destroy();
+        this._frameLoop = null;
 
         this._visionEngine?.destroy();
         this._visionEngine = null;

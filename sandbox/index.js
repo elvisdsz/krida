@@ -21,22 +21,29 @@ let hudInterval = null;
 
 const pointerApp = {
     name: "Pointer",
+    ctx: canvas.getContext("2d"),
     onStart() {
         status.textContent = "Ready - show your hand!";
     },
     onStop() {
         status.textContent = "Session stopped.";
     },
-    draw(ctx, trackerResult) {
+    draw(ctx, trackerResult) { // TODO: Remove
+       console.warn("draw shouldn't be called!");
+    },
+    updateTracker(trackerResult) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
         const pinch = trackerResult.hand?.gestures?.get("pinch");
         if (pinch) {
             const { x, y } = pinch.position ?? { x: 0, y: 0 };
-            ctx.beginPath();
-            ctx.arc(x * canvas.width, y * canvas.height, 12, 0, Math.PI * 2);
-            ctx.fillStyle = pinch.isActive ? "rgba(255, 120, 0, 0.85)" : "rgba(17, 192, 26, 0.5)";
-            ctx.fill();
+            this.ctx.beginPath();
+            this.ctx.arc(x * canvas.width, y * canvas.height, 12, 0, Math.PI * 2);
+            this.ctx.fillStyle = pinch.isActive ? "rgba(255, 120, 0, 0.85)" : "rgba(17, 192, 26, 0.5)";
+            this.ctx.fill();
         }
-    },
+    }
 };
 
 const kridaSession = new Session();
@@ -44,7 +51,6 @@ const kridaSession = new Session();
 async function main() {
     await kridaSession.start({
         video,
-        canvas,
         app: pointerApp,
         visionEngineOptions: {
             handLandmarkerEnabled: true,
@@ -57,9 +63,7 @@ async function main() {
                 new PinchDetector(),
             ],
         },
-        renderLoopOptions: {
-            debugView: true,
-        },
+        debugView: true,
         performanceMonitor: monitor,
     });
 

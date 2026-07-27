@@ -48,7 +48,14 @@ interface App {
      * @param ctx           2D canvas rendering context. Cleared before each call unless `autoClear` is disabled on the loop.
      * @param trackerResult Latest tracking results from the engine. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
      */
-    draw(ctx: CanvasRenderingContext2D, trackerResult: TrackerResult): void;
+    draw(ctx: CanvasRenderingContext2D, trackerResult: TrackerResult): void;  // TODO: Remove
+
+    /**
+     * Called by the active FrameLoop, once per loop frame.
+     * 
+     * @param trackerResult Latest tracking results from the engine. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
+     */
+    updateTracker(trackerResult: TrackerResult): void;
 }
 
 export default App;
