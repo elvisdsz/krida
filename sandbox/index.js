@@ -32,8 +32,10 @@ const pointerApp = {
        console.warn("draw shouldn't be called!");
     },
     updateTracker(trackerResult) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        if(canvas.width !== video.videoWidth)
+            canvas.width = video.videoWidth;
+        if(canvas.height !== video.videoHeight)
+            canvas.height = video.videoHeight;
 
         const pinch = trackerResult.hand?.gestures?.get("pinch");
         if (pinch) {
