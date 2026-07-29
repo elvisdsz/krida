@@ -76,8 +76,12 @@ export class FrameLoop {
         }
 
         if (this._debugCanvasCtx) {
-            this._debugCanvasCtx.canvas.width = video.videoWidth;
-            this._debugCanvasCtx.canvas.height = video.videoHeight;
+            if (this._debugCanvasCtx.canvas.width !== video.videoWidth) {
+                this._debugCanvasCtx.canvas.width = video.videoWidth;
+            }
+            if (this._debugCanvasCtx.canvas.height !== video.videoHeight) {
+                this._debugCanvasCtx.canvas.height = video.videoHeight;
+            }
         }
 
         const makeFrame = (currentTime: number) => {
@@ -159,8 +163,11 @@ export class FrameLoop {
             this._trackerCallback(trackerResult);
         }
 
-        if (this._debugCanvasCtx && (trackerResult.hand || trackerResult.pose)) {
-            this.drawDebugFrame(this._debugCanvasCtx, trackerResult);
+        if (this._debugCanvasCtx) {
+            this._debugCanvasCtx.clearRect(0, 0, this._debugCanvasCtx.canvas.width, this._debugCanvasCtx.canvas.height);
+            if (trackerResult.hand || trackerResult.pose) {
+                this.drawDebugFrame(this._debugCanvasCtx, trackerResult);
+            }
         }
     }
 

@@ -32,6 +32,7 @@ const pointerApp = {
        console.warn("draw shouldn't be called!");
     },
     updateTracker(trackerResult) {
+        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
         if(canvas.width !== video.videoWidth)
             canvas.width = video.videoWidth;
         if(canvas.height !== video.videoHeight)
