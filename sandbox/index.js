@@ -28,9 +28,6 @@ const pointerApp = {
     onStop() {
         status.textContent = "Session stopped.";
     },
-    draw(ctx, trackerResult) { // TODO: Remove
-       console.warn("draw shouldn't be called!");
-    },
     updateTracker(trackerResult) {
         this.ctx.clearRect(0, 0, canvas.width, canvas.height);
         if(canvas.width !== video.videoWidth)

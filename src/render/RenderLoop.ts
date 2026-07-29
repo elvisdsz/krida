@@ -214,7 +214,7 @@ export class RenderLoop {
 
         const trackerResult: TrackerResult = this._visionEngine.getTrackerResult(video, frameStart, this._monitor);
 
-        this._app.draw(ctx, trackerResult);
+        this._app.updateTracker(trackerResult);
 
         if (this._debugView && (trackerResult.hand || trackerResult.pose)) {
             this.drawDebugFrame(ctx, canvas, trackerResult);
