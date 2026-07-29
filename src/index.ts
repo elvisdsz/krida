@@ -19,3 +19,5 @@ export { GestureDetector } from "./gestures/GestureDetector";
 export type { GestureState, GestureOptions, GestureReading } from "./gestures/GestureDetector";
 export { GestureMap } from "./gestures/GestureMap";
 export { PinchDetector } from "./gestures/PinchDetector";
+
+export { fitCanvasToVideo } from "./dom/canvas";

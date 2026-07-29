@@ -1,4 +1,4 @@
-import { Session, PerformanceMonitor, PinchDetector } from "../dist/index.mjs";
+import { Session, PerformanceMonitor, PinchDetector, fitCanvasToVideo } from "../dist/index.mjs";
 
 const WASM_PATH =
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
@@ -19,6 +19,8 @@ const runLabel = params.get("run") ?? "sandbox";
 const monitor = new PerformanceMonitor({ label: runLabel, windowSize: 300 });
 let hudInterval = null;
 
+fitCanvasToVideo(canvas, video);
+
 const pointerApp = {
     name: "Pointer",
     ctx: canvas.getContext("2d"),
@@ -30,10 +32,6 @@ const pointerApp = {
     },
     updateTracker(trackerResult) {
         this.ctx.clearRect(0, 0, canvas.width, canvas.height);
-        if(canvas.width !== video.videoWidth)
-            canvas.width = video.videoWidth;
-        if(canvas.height !== video.videoHeight)
-            canvas.height = video.videoHeight;
 
         const pinch = trackerResult.hand?.gestures?.get("pinch");
         if (pinch) {

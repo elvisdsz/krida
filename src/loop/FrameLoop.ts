@@ -2,6 +2,7 @@ import { DrawingUtils, HandLandmarker, NormalizedLandmark, PoseLandmarker } from
 import { VisionEngine, HandTrackerResult, PoseTrackerResult, TrackerResult } from "../engine/VisionEngine";
 import App from "../app/App";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
+import { fitCanvasToVideo } from "../dom/canvas";
 
 export interface FrameLoopOptions {
     /**
@@ -46,6 +47,7 @@ export class FrameLoop {
     private readonly _visionEngine: VisionEngine;
     private readonly _monitor: PerformanceMonitor | null;
     private _lastAcceptedFrameTime: number = 0;
+    private _abortController: AbortController | null = null;
 
     constructor(
         visionEngine: VisionEngine,
@@ -74,14 +76,10 @@ export class FrameLoop {
         if (callback) {
             this._trackerCallback = callback;
         }
+        this._abortController = new AbortController();
 
         if (this._debugCanvasCtx) {
-            if (this._debugCanvasCtx.canvas.width !== video.videoWidth) {
-                this._debugCanvasCtx.canvas.width = video.videoWidth;
-            }
-            if (this._debugCanvasCtx.canvas.height !== video.videoHeight) {
-                this._debugCanvasCtx.canvas.height = video.videoHeight;
-            }
+            fitCanvasToVideo(this._debugCanvasCtx.canvas, video, this._abortController.signal);
         }
 
         const makeFrame = (currentTime: number) => {
@@ -111,6 +109,8 @@ export class FrameLoop {
             this._frameId = null;
         }
 
+        this._abortController?.abort();
+        this._abortController = null;
         this._trackerCallback = null;
         this._drawingUtils = null;
     }
