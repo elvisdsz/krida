@@ -137,11 +137,6 @@ export class Session {
                 frameLoopOptions.debugCanvas = debugCanvas;
             }
 
-            if (frameLoopOptions && frameLoopOptions.debugCanvas) {
-                frameLoopOptions.debugCanvas.width = this._video.videoWidth;
-                frameLoopOptions.debugCanvas.height = this._video.videoHeight;
-            }
-
             this._frameLoop = new FrameLoop(this._visionEngine, frameLoopOptions, monitor);
             this._frameLoop.start(this._video, options.app.updateTracker.bind(options.app));
 
