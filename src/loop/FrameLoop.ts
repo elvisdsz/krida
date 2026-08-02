@@ -1,6 +1,5 @@
 import { DrawingUtils, HandLandmarker, NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
 import { VisionEngine, HandTrackerResult, PoseTrackerResult, TrackerResult } from "../engine/VisionEngine";
-import App from "../app/App";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 import { fitCanvasToVideo } from "../dom/canvas";
 
@@ -102,8 +101,6 @@ export class FrameLoop {
      * {@link start} afterwards.
      */
     stop(): void {
-        this._frameId !== null ? this._trackerCallback : null;
-
         if (this._frameId !== null) {
             cancelAnimationFrame(this._frameId);
             this._frameId = null;
@@ -144,8 +141,6 @@ export class FrameLoop {
     // ── Private helpers ──────────────────────────────────────────────────────
 
     private processFrame(video: HTMLVideoElement, currentTime: number): void {
-        
-
         // Skip if the video hasn't advanced to a new frame
         if (this._lastVideoTime === video.currentTime) return;
         this._lastVideoTime = video.currentTime;
