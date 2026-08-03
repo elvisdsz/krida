@@ -23,13 +23,13 @@ export interface SessionStartOptions {
     mediaStreamConstraints?: MediaStreamConstraints;
     /**
      * Optional performance monitor. Receives session-wide metrics (camera acquire,
-     * engine init) as well as per-frame metrics from the underlying RenderLoop.
+     * engine init) as well as per-frame metrics from the underlying FrameLoop.
      */
     performanceMonitor?: PerformanceMonitor;
 }
 
 /**
- * High-level session that manages camera, VisionEngine, and RenderLoop lifecycles.
+ * High-level session that manages camera, VisionEngine, and FrameLoop lifecycles.
  *
  * Usage:
  * ```ts
@@ -70,7 +70,8 @@ export class Session {
     }
 
     /**
-     * Start camera streaming and initialize the engine.
+     * Acquire the camera, initialize the {@link VisionEngine}, start the
+     * {@link FrameLoop}, and invoke the app's `onStart` hook.
      * Any previously running session is destroyed first.
      */
     start = async (options: SessionStartOptions): Promise<void> => {
