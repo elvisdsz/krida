@@ -20,7 +20,8 @@ export interface FrameLoopOptions {
  * Per-frame timer loop.
  *
  * Drives a `requestAnimationFrame` loop, polls the {@link VisionEngine} for
- * tracking results each frame, and delegates drawing to a {@link App}.
+ * tracking results each frame, and hands each result to the callback passed to
+ * {@link start}.
  *
  * Usage:
  * ```ts
@@ -65,7 +66,7 @@ export class FrameLoop {
      * Automatically stops any previously running loop before starting.
      *
      * @param video     The `<video>` element providing the webcam stream.
-     * @param callback  A callback function that recieves {@link TrackerResult} object from every iteration of the frame loop.
+     * @param callback  Receives the {@link TrackerResult} for every processed frame.
      */
     start(video: HTMLVideoElement, callback?: ((trackerResult: TrackerResult) => void)): void {
         this.stop();
@@ -96,9 +97,8 @@ export class FrameLoop {
     /**
      * Stop the frame loop. Safe to call when already stopped.
      *
-     * @throws If the active app's `onStop` throws. Loop state is fully cleared
-     * before the throw propagates, so the loop is safe to restart via
-     * {@link start} afterwards.
+     * Clears the tracker callback. The loop is safe to restart via
+     * {@link start} afterwards, but the callback must be passed again.
      */
     stop(): void {
         if (this._frameId !== null) {
