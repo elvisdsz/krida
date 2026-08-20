@@ -7,7 +7,7 @@ export type { FrameLoopOptions } from "./loop/FrameLoop";
 export { Session } from "./runtime/Session";
 export type { SessionOptions, SessionStartOptions } from "./runtime/Session";
 
-export type { default as App } from "./app/App";
+export type { default as Scene } from "./scene/Scene";
 
 export { default as EMAFilter } from "./filters/EMAFilter";
 export type { default as LandmarkFilter } from "./filters/LandmarkFilter";

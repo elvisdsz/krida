@@ -1,7 +1,8 @@
-import type App from "../app/App";
+import type Scene from "../scene/Scene";
 import { VisionEngine, type VisionEngineOptions } from "../engine/VisionEngine";
 import { FrameLoop, type FrameLoopOptions } from "../loop/FrameLoop";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
+import SceneManager from "../scene/SceneManager";
 
 export interface SessionOptions {
     /** Automatically cleanup when the page is hidden or unloaded. Default: true. */
@@ -11,8 +12,8 @@ export interface SessionOptions {
 export interface SessionStartOptions {
     /** Video element that receives webcam frames. */
     video: HTMLVideoElement;
-    /** App that receives per-frame tracker results. */
-    app: App;
+    /** An array of scenes that receives per-frame tracker results. */
+    scenes: Scene[];
     /** VisionEngine initialization options. */
     visionEngineOptions: VisionEngineOptions;
     /** FrameLoop options used to construct FrameLoop. */
@@ -36,7 +37,7 @@ export interface SessionStartOptions {
  * const kridaSession = new Session();
  * await kridaSession.start({
  *   video,
- *   app,
+ *   scenes: [scene],
  *   visionEngineOptions: { handLandmarkerEnabled: true, poseLandmarkerEnabled: true },
  * });
  *
@@ -46,9 +47,10 @@ export interface SessionStartOptions {
  */
 export class Session {
 
-    private _visionEngine: VisionEngine | null = null;
     private readonly _autoCleanupOnPageLifecycle: boolean;
+    private readonly _sceneManager = new SceneManager();
 
+    private _visionEngine: VisionEngine | null = null;
     private _frameLoop: FrameLoop | null = null;
     private _video: HTMLVideoElement | null = null;
     private _stream: MediaStream | null = null;
@@ -70,8 +72,32 @@ export class Session {
     }
 
     /**
+     * Adds given scene(s) to the scene manager.
+     *
+     * Use this method to add a scene dynamically to an already running session.
+     * Otherwise, consider adding scenes by passing them to the `scenes` option in `start()`.
+     *
+     * @throws {Error} If called on a Session that isn't running.
+     */
+    addScene = (...scenes: Scene[]): void => {
+        if (!this.isRunning) {
+            throw new Error("Session is not running - call `start()` before `addScene`");
+        }
+        this._sceneManager.addScene(...scenes);
+    };
+
+    /**
+     * Removes the given scene from the scene manager.
+     *
+     * Returns `true` if scene was found and removed.
+     */
+    removeScene = (scene: Scene): boolean => {
+        return this._sceneManager.removeScene(scene);
+    };
+
+    /**
      * Acquire the camera, initialize the {@link VisionEngine}, start the
-     * {@link FrameLoop}, and invoke the app's `onStart` hook.
+     * {@link FrameLoop}, and invoke every managed scene's `onStart` hook.
      * Any previously running session is destroyed first.
      */
     start = async (options: SessionStartOptions): Promise<void> => {
@@ -139,9 +165,9 @@ export class Session {
             }
 
             this._frameLoop = new FrameLoop(this._visionEngine, frameLoopOptions, monitor);
-            this._frameLoop.start(this._video, options.app.updateTracker.bind(options.app));
-
-            options.app.onStart?.();
+            this._sceneManager.addScene(...options.scenes);
+            this._frameLoop.start(this._video, this._sceneManager.updateTrackerAll);
+            this._sceneManager.onStartAll();
         } catch (error) {
             visionEngine?.destroy();
             if (stream) {
@@ -168,7 +194,7 @@ export class Session {
         this._startupAbortController?.abort();
         this._startupAbortController = null;
 
-        // TODO: Call App.onStop()
+        this._sceneManager.removeAllScenes(); // calls `onStop()` for all active scenes
 
         this._frameLoop?.destroy();
         this._frameLoop = null;

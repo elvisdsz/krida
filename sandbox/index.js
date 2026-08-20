@@ -21,8 +21,7 @@ let hudInterval = null;
 
 fitCanvasToVideo(canvas, video);
 
-const pointerApp = {
-    name: "Pointer",
+const pointerScene = {
     ctx: canvas.getContext("2d"),
     onStart() {
         status.textContent = "Ready - show your hand!";
@@ -49,7 +48,7 @@ const kridaSession = new Session();
 async function main() {
     await kridaSession.start({
         video,
-        app: pointerApp,
+        scenes: [pointerScene],
         visionEngineOptions: {
             handLandmarkerEnabled: true,
             poseLandmarkerEnabled: false,
