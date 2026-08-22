@@ -21,7 +21,7 @@ import type { TrackerResult } from "../engine/VisionEngine";
  * }
  * ```
  */
-interface Scene {
+export interface Scene {
   /**
    * Optional hook called once when the session has finished starting.
    *
@@ -51,5 +51,3 @@ interface Scene {
    */
   updateTracker(trackerResult: TrackerResult): void;
 }
-
-export default Scene;

@@ -1,11 +1,11 @@
 import type { TrackerResult } from "../engine/VisionEngine";
-import type Scene from "./Scene";
+import type { Scene } from "./Scene";
 
 /**
  * Internal manager class that keeps track of loaded scenes and provides
  * methods to update these scenes and call their lifecycle hooks.
  */
-class SceneManager {
+export class SceneManager {
   #scenes: Scene[] = [];
   #started: boolean = false;
   #failedScenes = new WeakSet<Scene>();
@@ -93,5 +93,3 @@ class SceneManager {
     }
   };
 }
-
-export default SceneManager;

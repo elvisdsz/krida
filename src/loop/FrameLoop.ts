@@ -1,5 +1,5 @@
-import { DrawingUtils, HandLandmarker, NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
-import { VisionEngine, HandTrackerResult, PoseTrackerResult, TrackerResult } from "../engine/VisionEngine";
+import { DrawingUtils, HandLandmarker, type NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
+import { VisionEngine, type HandTrackerResult, type PoseTrackerResult, type TrackerResult } from "../engine/VisionEngine";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 import { fitCanvasToVideo } from "../dom/canvas";
 
@@ -227,5 +227,3 @@ export class FrameLoop {
         }
     }
 }
-
-export default FrameLoop;

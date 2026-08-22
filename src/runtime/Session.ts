@@ -1,8 +1,8 @@
-import type Scene from "../scene/Scene";
+import type { Scene } from "../scene/Scene";
 import { VisionEngine, type VisionEngineOptions } from "../engine/VisionEngine";
 import { FrameLoop, type FrameLoopOptions } from "../loop/FrameLoop";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
-import SceneManager from "../scene/SceneManager";
+import { SceneManager } from "../scene/SceneManager";
 
 export interface SessionOptions {
     /** Automatically cleanup when the page is hidden or unloaded. Default: true. */
@@ -291,5 +291,3 @@ export class Session {
         this._lifecycleListenersRegistered = false;
     }
 }
-
-export default Session;

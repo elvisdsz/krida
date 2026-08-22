@@ -7,10 +7,10 @@ export type { FrameLoopOptions } from "./loop/FrameLoop";
 export { Session } from "./runtime/Session";
 export type { SessionOptions, SessionStartOptions } from "./runtime/Session";
 
-export type { default as Scene } from "./scene/Scene";
+export type { Scene } from "./scene/Scene";
 
-export { default as EMAFilter } from "./filters/EMAFilter";
-export type { default as LandmarkFilter } from "./filters/LandmarkFilter";
+export { EMAFilter } from "./filters/EMAFilter";
+export type { LandmarkFilter } from "./filters/LandmarkFilter";
 
 export { PerformanceMonitor } from "./perf/PerformanceMonitor";
 export type { PerformanceMonitorOptions, PerformanceSnapshot, MetricStats, CameraAcquireMetric, ModelInitMetric } from "./perf/PerformanceMonitor";

@@ -1,6 +1,6 @@
-import { DrawingUtils, HandLandmarker, NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
-import { VisionEngine, HandTrackerResult, PoseTrackerResult, TrackerResult } from "../engine/VisionEngine";
-import App from "../app/App";
+import { DrawingUtils, HandLandmarker, type NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
+import { VisionEngine, type HandTrackerResult, type PoseTrackerResult, type TrackerResult } from "../engine/VisionEngine";
+import type { App } from "../app/App";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 
 export interface RenderLoopOptions {
@@ -286,5 +286,3 @@ export class RenderLoop {
         }
     }
 }
-
-export default RenderLoop;

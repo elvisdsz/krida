@@ -1,5 +1,5 @@
-import { NormalizedLandmark } from "@mediapipe/tasks-vision";
-import LandmarkFilter from "./LandmarkFilter";
+import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
+import type { LandmarkFilter } from "./LandmarkFilter";
 
 /**
  * Exponential Moving Average (EMA) filter for landmarks.
@@ -13,7 +13,7 @@ import LandmarkFilter from "./LandmarkFilter";
  *
  * α is a required constructor argument; there is no default.
  */
-class EMAFilter implements LandmarkFilter {
+export class EMAFilter implements LandmarkFilter {
 
     private _previous: NormalizedLandmark[] | null = null;
     private readonly _alpha: number;
@@ -53,5 +53,3 @@ class EMAFilter implements LandmarkFilter {
         this._previous = null;
     }
 }
-
-export default EMAFilter;

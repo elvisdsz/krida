@@ -2,12 +2,12 @@ import {
     HandLandmarker,
     PoseLandmarker,
     FilesetResolver,
-    HandLandmarkerResult,
-    PoseLandmarkerResult,
-    NormalizedLandmark,
+    type HandLandmarkerResult,
+    type PoseLandmarkerResult,
+    type NormalizedLandmark,
 } from "@mediapipe/tasks-vision";
-import LandmarkFilter from "../filters/LandmarkFilter";
-import EMAFilter from "../filters/EMAFilter";
+import type { LandmarkFilter } from "../filters/LandmarkFilter";
+import { EMAFilter } from "../filters/EMAFilter";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 import { GestureDetector } from "../gestures/GestureDetector";
 import { GestureMap } from "../gestures/GestureMap";

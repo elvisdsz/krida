@@ -1,4 +1,4 @@
-import { TrackerResult } from "../engine/VisionEngine";
+import type { TrackerResult } from "../engine/VisionEngine";
 
 /**
  * Contract for all 2D canvas-based apps.
@@ -23,7 +23,7 @@ import { TrackerResult } from "../engine/VisionEngine";
  * }
  * ```
  */
-interface App {
+export interface App {
     /** Display name of this app. */
     name: string;
 
@@ -50,5 +50,3 @@ interface App {
      */
     updateTracker(trackerResult: TrackerResult): void;
 }
-
-export default App;

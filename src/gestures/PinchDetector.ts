@@ -1,5 +1,5 @@
-import { HandTrackerResult } from "../engine/VisionEngine";
-import { GestureDetector, GestureOptions, GestureReading } from "./GestureDetector";
+import type { HandTrackerResult } from "../engine/VisionEngine";
+import { GestureDetector, type GestureOptions, type GestureReading } from "./GestureDetector";
 import { distance3D, centroid3D } from "../math/vector3D";
 import { clamp } from "../math/utils";
 
