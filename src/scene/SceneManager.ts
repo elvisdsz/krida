@@ -42,25 +42,27 @@ class SceneManager {
 
   /** Removes all scenes from managed scenes and calls their `onStop` hook. */
   removeAllScenes = (): void => {
-    if (this.#started) {
-      this.onStopAll();
-    }
+    this.onStopAll();
     this.#scenes.length = 0;
     this.#failedScenes = new WeakSet<Scene>();
   };
 
   /** Call `onStart()` method of all managed scenes. */
   onStartAll = (): void => {
+    if (this.#started) return;
     this.#failedScenes = new WeakSet<Scene>();
     this.#started = true;
     for (const scene of [...this.#scenes]) {
+      if (!this.#scenes.includes(scene)) continue;
       this.#safeCall(scene, "onStart");
     }
   };
 
   /** Call `onStop()` method of all managed scenes. */
   onStopAll = (): void => {
+    if (!this.#started) return;
     for (const scene of [...this.#scenes]) {
+      if (!this.#scenes.includes(scene)) continue;
       this.#safeCall(scene, "onStop");
     }
     this.#started = false;
