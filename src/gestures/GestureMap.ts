@@ -1,4 +1,4 @@
-import { GestureState } from "./GestureDetector";
+import type { GestureState } from "./GestureDetector";
 
 export class GestureMap {
     private gestureNameMap: Map<string, GestureState>;

@@ -1,4 +1,4 @@
-import { Session, PerformanceMonitor, PinchDetector } from "../dist/index.mjs";
+import { Session, PerformanceMonitor, PinchDetector, fitCanvasToVideo } from "../dist/index.mjs";
 
 const WASM_PATH =
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm";
@@ -19,24 +19,28 @@ const runLabel = params.get("run") ?? "sandbox";
 const monitor = new PerformanceMonitor({ label: runLabel, windowSize: 300 });
 let hudInterval = null;
 
-const pointerApp = {
-    name: "Pointer",
+fitCanvasToVideo(canvas, video);
+
+const pointerScene = {
+    ctx: canvas.getContext("2d"),
     onStart() {
         status.textContent = "Ready - show your hand!";
     },
     onStop() {
         status.textContent = "Session stopped.";
     },
-    draw(ctx, trackerResult) {
+    updateTracker(trackerResult) {
+        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+
         const pinch = trackerResult.hand?.gestures?.get("pinch");
         if (pinch) {
             const { x, y } = pinch.position ?? { x: 0, y: 0 };
-            ctx.beginPath();
-            ctx.arc(x * canvas.width, y * canvas.height, 12, 0, Math.PI * 2);
-            ctx.fillStyle = pinch.isActive ? "rgba(255, 120, 0, 0.85)" : "rgba(17, 192, 26, 0.5)";
-            ctx.fill();
+            this.ctx.beginPath();
+            this.ctx.arc(x * canvas.width, y * canvas.height, 12, 0, Math.PI * 2);
+            this.ctx.fillStyle = pinch.isActive ? "rgba(255, 120, 0, 0.85)" : "rgba(17, 192, 26, 0.5)";
+            this.ctx.fill();
         }
-    },
+    }
 };
 
 const kridaSession = new Session();
@@ -44,8 +48,7 @@ const kridaSession = new Session();
 async function main() {
     await kridaSession.start({
         video,
-        canvas,
-        app: pointerApp,
+        scenes: [pointerScene],
         visionEngineOptions: {
             handLandmarkerEnabled: true,
             poseLandmarkerEnabled: false,
@@ -57,9 +60,7 @@ async function main() {
                 new PinchDetector(),
             ],
         },
-        renderLoopOptions: {
-            debugView: true,
-        },
+        debugView: true,
         performanceMonitor: monitor,
     });
 

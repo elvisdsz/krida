@@ -1,4 +1,4 @@
-import { NormalizedLandmark } from "@mediapipe/tasks-vision";
+import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 
 /**
  * Interface for landmark filters.
@@ -11,7 +11,7 @@ import { NormalizedLandmark } from "@mediapipe/tasks-vision";
  * (e.g. VisionEngine) is responsible for managing the array of filters and resetting
  * them when a subject disappears.
  */
-interface LandmarkFilter {
+export interface LandmarkFilter {
     /**
      * Process one frame of raw landmarks and return the filtered output.
      * The returned array must have the same length as `raw`.
@@ -21,5 +21,3 @@ interface LandmarkFilter {
     /** Reset internal state (e.g. when the tracked subject disappears). */
     reset(): void;
 }
-
-export default LandmarkFilter;

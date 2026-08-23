@@ -1,5 +1,5 @@
-import { NormalizedLandmark } from "@mediapipe/tasks-vision";
-import LandmarkFilter from "./LandmarkFilter";
+import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
+import type { LandmarkFilter } from "./LandmarkFilter";
 
 /**
  * Exponential Moving Average (EMA) filter for landmarks.
@@ -10,13 +10,18 @@ import LandmarkFilter from "./LandmarkFilter";
  *
  * - α close to 1 → minimal smoothing, fast response, more jitter.
  * - α close to 0 → heavy smoothing, slower response, less jitter.
- * 
+ *
+ * α is a required constructor argument; there is no default.
  */
-class EMAFilter implements LandmarkFilter {
+export class EMAFilter implements LandmarkFilter {
 
     private _previous: NormalizedLandmark[] | null = null;
     private readonly _alpha: number;
 
+    /**
+     * @param alpha Smoothing factor in (0, 1]. Required — there is no default.
+     * @throws RangeError If `alpha` is omitted or falls outside (0, 1].
+     */
     constructor(alpha: number) {
         if (alpha === undefined || alpha <= 0 || alpha > 1) {
             throw new RangeError(`EMAFilter alpha must be in (0, 1]. Received: ${alpha}`);
@@ -48,5 +53,3 @@ class EMAFilter implements LandmarkFilter {
         this._previous = null;
     }
 }
-
-export default EMAFilter;

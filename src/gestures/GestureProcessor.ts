@@ -1,4 +1,4 @@
-import { GestureDetector, GestureState } from "./GestureDetector";
+import { GestureDetector, type GestureState } from "./GestureDetector";
 import { GestureMap } from "./GestureMap";
 
 export class GestureProcessor<TResult extends { startTimeMs: number }> {
