@@ -58,6 +58,7 @@ await session.start({
 
 Minimal HTML:
 
+<!-- prettier-ignore -->
 ```html
 <video autoplay playsinline muted></video>
 <canvas></canvas>
@@ -109,6 +110,7 @@ session.isRunning: boolean
 `SessionOptions.autoCleanupOnPageLifecycle` (default: `true`) automatically calls `destroy()` when the page is hidden or unloaded.
 
 `SessionStartOptions`:
+
 - `video` — the `<video>` element that receives webcam frames (required)
 - `scenes` — array of `Scene` instances to drive (required)
 - `visionEngineOptions` — engine initialization options (required)
@@ -128,6 +130,7 @@ With `debugView: true`, Krida creates its own absolutely-positioned overlay canv
 Created internally by `Session`, or directly via `VisionEngine.create(options)`.
 
 Key options:
+
 - `handLandmarkerEnabled` / `poseLandmarkerEnabled` — at least one must be `true`
 - `visionTaskFilesetPath` — path to the MediaPipe WASM bundle (default: `"/models/tasks-vision-wasm"`)
 - `handLandmarkerModelPath` / `poseLandmarkerModelPath` — `.task` model file paths (defaults: `"/models/hand_landmarker.task"`, `"/models/pose_landmarker.task"`)
@@ -152,6 +155,7 @@ loop.isRunning: boolean
 ```
 
 `FrameLoopOptions`:
+
 - `targetFPS` — cap the frame processing rate; `null` for uncapped (default: `30`)
 - `debugCanvas` — canvas to draw landmark connections, dots, and index labels onto (default: `null`, disabled)
 

@@ -1,5 +1,10 @@
 export { VisionEngine, VisionEngineDefaults } from "./engine/VisionEngine";
-export type { VisionEngineOptions, HandTrackerResult, PoseTrackerResult, TrackerResult } from "./engine/VisionEngine";
+export type {
+  VisionEngineOptions,
+  HandTrackerResult,
+  PoseTrackerResult,
+  TrackerResult,
+} from "./engine/VisionEngine";
 
 export { FrameLoop } from "./loop/FrameLoop";
 export type { FrameLoopOptions } from "./loop/FrameLoop";
@@ -13,7 +18,13 @@ export { EMAFilter } from "./filters/EMAFilter";
 export type { LandmarkFilter } from "./filters/LandmarkFilter";
 
 export { PerformanceMonitor } from "./perf/PerformanceMonitor";
-export type { PerformanceMonitorOptions, PerformanceSnapshot, MetricStats, CameraAcquireMetric, ModelInitMetric } from "./perf/PerformanceMonitor";
+export type {
+  PerformanceMonitorOptions,
+  PerformanceSnapshot,
+  MetricStats,
+  CameraAcquireMetric,
+  ModelInitMetric,
+} from "./perf/PerformanceMonitor";
 
 export { GestureDetector } from "./gestures/GestureDetector";
 export type { GestureState, GestureOptions, GestureReading } from "./gestures/GestureDetector";

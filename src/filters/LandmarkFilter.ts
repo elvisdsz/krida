@@ -12,12 +12,12 @@ import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
  * them when a subject disappears.
  */
 export interface LandmarkFilter {
-    /**
-     * Process one frame of raw landmarks and return the filtered output.
-     * The returned array must have the same length as `raw`.
-     */
-    filter(raw: NormalizedLandmark[]): NormalizedLandmark[];
+  /**
+   * Process one frame of raw landmarks and return the filtered output.
+   * The returned array must have the same length as `raw`.
+   */
+  filter(raw: NormalizedLandmark[]): NormalizedLandmark[];
 
-    /** Reset internal state (e.g. when the tracked subject disappears). */
-    reset(): void;
+  /** Reset internal state (e.g. when the tracked subject disappears). */
+  reset(): void;
 }

@@ -14,42 +14,41 @@ import type { LandmarkFilter } from "./LandmarkFilter";
  * α is a required constructor argument; there is no default.
  */
 export class EMAFilter implements LandmarkFilter {
+  private _previous: NormalizedLandmark[] | null = null;
+  private readonly _alpha: number;
 
-    private _previous: NormalizedLandmark[] | null = null;
-    private readonly _alpha: number;
+  /**
+   * @param alpha Smoothing factor in (0, 1]. Required — there is no default.
+   * @throws RangeError If `alpha` is omitted or falls outside (0, 1].
+   */
+  constructor(alpha: number) {
+    if (alpha === undefined || alpha <= 0 || alpha > 1) {
+      throw new RangeError(`EMAFilter alpha must be in (0, 1]. Received: ${alpha}`);
+    }
+    this._alpha = alpha;
+  }
 
-    /**
-     * @param alpha Smoothing factor in (0, 1]. Required — there is no default.
-     * @throws RangeError If `alpha` is omitted or falls outside (0, 1].
-     */
-    constructor(alpha: number) {
-        if (alpha === undefined || alpha <= 0 || alpha > 1) {
-            throw new RangeError(`EMAFilter alpha must be in (0, 1]. Received: ${alpha}`);
-        }
-        this._alpha = alpha;
+  filter(raw: NormalizedLandmark[]): NormalizedLandmark[] {
+    if (this._previous === null || this._previous.length !== raw.length) {
+      // First frame or landmark count changed — seed with raw values
+      this._previous = raw.map((l) => ({ ...l }));
+      return this._previous;
     }
 
-    filter(raw: NormalizedLandmark[]): NormalizedLandmark[] {
-        if (this._previous === null || this._previous.length !== raw.length) {
-            // First frame or landmark count changed — seed with raw values
-            this._previous = raw.map(l => ({ ...l }));
-            return this._previous;
-        }
+    const a = this._alpha;
+    const oneMinusA = 1 - a;
 
-        const a = this._alpha;
-        const oneMinusA = 1 - a;
+    this._previous = raw.map((l, i) => ({
+      x: a * l.x + oneMinusA * this._previous![i].x,
+      y: a * l.y + oneMinusA * this._previous![i].y,
+      z: a * l.z + oneMinusA * this._previous![i].z,
+      visibility: a * (l.visibility ?? 0) + oneMinusA * (this._previous![i].visibility ?? 0),
+    }));
 
-        this._previous = raw.map((l, i) => ({
-            x: a * l.x + oneMinusA * this._previous![i].x,
-            y: a * l.y + oneMinusA * this._previous![i].y,
-            z: a * l.z + oneMinusA * this._previous![i].z,
-            visibility: a * (l.visibility ?? 0) + oneMinusA * (this._previous![i].visibility ?? 0),
-        }));
+    return this._previous;
+  }
 
-        return this._previous;
-    }
-
-    reset(): void {
-        this._previous = null;
-    }
+  reset(): void {
+    this._previous = null;
+  }
 }

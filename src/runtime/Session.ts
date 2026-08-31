@@ -5,28 +5,28 @@ import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 import { SceneManager } from "../scene/SceneManager";
 
 export interface SessionOptions {
-    /** Automatically cleanup when the page is hidden or unloaded. Default: true. */
-    autoCleanupOnPageLifecycle?: boolean;
+  /** Automatically cleanup when the page is hidden or unloaded. Default: true. */
+  autoCleanupOnPageLifecycle?: boolean;
 }
 
 export interface SessionStartOptions {
-    /** Video element that receives webcam frames. */
-    video: HTMLVideoElement;
-    /** An array of scenes that receives per-frame tracker results. */
-    scenes: Scene[];
-    /** VisionEngine initialization options. */
-    visionEngineOptions: VisionEngineOptions;
-    /** FrameLoop options used to construct FrameLoop. */
-    frameLoopOptions?: FrameLoopOptions;
-    /** Enable visual debug view. */
-    debugView?: boolean;
-    /** Media constraints for getUserMedia. Default: { video: true }. */
-    mediaStreamConstraints?: MediaStreamConstraints;
-    /**
-     * Optional performance monitor. Receives session-wide metrics (camera acquire,
-     * engine init) as well as per-frame metrics from the underlying FrameLoop.
-     */
-    performanceMonitor?: PerformanceMonitor;
+  /** Video element that receives webcam frames. */
+  video: HTMLVideoElement;
+  /** An array of scenes that receives per-frame tracker results. */
+  scenes: Scene[];
+  /** VisionEngine initialization options. */
+  visionEngineOptions: VisionEngineOptions;
+  /** FrameLoop options used to construct FrameLoop. */
+  frameLoopOptions?: FrameLoopOptions;
+  /** Enable visual debug view. */
+  debugView?: boolean;
+  /** Media constraints for getUserMedia. Default: { video: true }. */
+  mediaStreamConstraints?: MediaStreamConstraints;
+  /**
+   * Optional performance monitor. Receives session-wide metrics (camera acquire,
+   * engine init) as well as per-frame metrics from the underlying FrameLoop.
+   */
+  performanceMonitor?: PerformanceMonitor;
 }
 
 /**
@@ -46,248 +46,251 @@ export interface SessionStartOptions {
  * ```
  */
 export class Session {
+  private readonly _autoCleanupOnPageLifecycle: boolean;
+  private readonly _sceneManager = new SceneManager();
 
-    private readonly _autoCleanupOnPageLifecycle: boolean;
-    private readonly _sceneManager = new SceneManager();
+  private _visionEngine: VisionEngine | null = null;
+  private _frameLoop: FrameLoop | null = null;
+  private _video: HTMLVideoElement | null = null;
+  private _stream: MediaStream | null = null;
+  private _startupAbortController: AbortController | null = null;
 
-    private _visionEngine: VisionEngine | null = null;
-    private _frameLoop: FrameLoop | null = null;
-    private _video: HTMLVideoElement | null = null;
-    private _stream: MediaStream | null = null;
-    private _startupAbortController: AbortController | null = null;
+  private _lifecycleListenersRegistered: boolean = false;
 
-    private _lifecycleListenersRegistered: boolean = false;
+  private readonly _onPageLifecycle = (): void => {
+    this.destroy();
+  };
 
-    private readonly _onPageLifecycle = (): void => {
-        this.destroy();
-    };
+  constructor(options: SessionOptions = {}) {
+    this._autoCleanupOnPageLifecycle = options.autoCleanupOnPageLifecycle ?? true;
+  }
 
-    constructor(options: SessionOptions = {}) {
-        this._autoCleanupOnPageLifecycle = options.autoCleanupOnPageLifecycle ?? true;
+  /** Returns true when a loop exists and is currently running. */
+  get isRunning(): boolean {
+    return this._frameLoop?.isRunning ?? false;
+  }
+
+  /**
+   * Adds given scene(s) to the scene manager.
+   *
+   * Use this method to add a scene dynamically to an already running session.
+   * Otherwise, consider adding scenes by passing them to the `scenes` option in `start()`.
+   *
+   * @throws {Error} If called on a Session that isn't running.
+   */
+  addScene = (...scenes: Scene[]): void => {
+    if (!this.isRunning) {
+      throw new Error("Session is not running - call `start()` before `addScene`");
+    }
+    this._sceneManager.addScene(...scenes);
+  };
+
+  /**
+   * Removes the given scene from the scene manager.
+   *
+   * Returns `true` if scene was found and removed.
+   */
+  removeScene = (scene: Scene): boolean => {
+    return this._sceneManager.removeScene(scene);
+  };
+
+  /**
+   * Acquire the camera, initialize the {@link VisionEngine}, start the
+   * {@link FrameLoop}, and invoke every managed scene's `onStart` hook.
+   * Any previously running session is destroyed first.
+   */
+  start = async (options: SessionStartOptions): Promise<void> => {
+    this.destroy();
+
+    const startupAbortController = new AbortController();
+    this._startupAbortController = startupAbortController;
+    const { signal } = startupAbortController;
+
+    this._video = options.video;
+
+    if (this._autoCleanupOnPageLifecycle) {
+      this.registerLifecycleListeners();
     }
 
-    /** Returns true when a loop exists and is currently running. */
-    get isRunning(): boolean {
-        return this._frameLoop?.isRunning ?? false;
-    }
+    const monitor = options.performanceMonitor ?? null;
 
-    /**
-     * Adds given scene(s) to the scene manager.
-     *
-     * Use this method to add a scene dynamically to an already running session.
-     * Otherwise, consider adding scenes by passing them to the `scenes` option in `start()`.
-     *
-     * @throws {Error} If called on a Session that isn't running.
-     */
-    addScene = (...scenes: Scene[]): void => {
-        if (!this.isRunning) {
-            throw new Error("Session is not running - call `start()` before `addScene`");
-        }
-        this._sceneManager.addScene(...scenes);
-    };
+    let stream: MediaStream | null = null;
+    let visionEngine: VisionEngine | null = null;
+    try {
+      const includedPermissionPrompt =
+        monitor !== null ? await this.cameraPermissionWillPrompt() : false;
+      this.throwIfAborted(signal);
+      const cameraStart = performance.now();
 
-    /**
-     * Removes the given scene from the scene manager.
-     *
-     * Returns `true` if scene was found and removed.
-     */
-    removeScene = (scene: Scene): boolean => {
-        return this._sceneManager.removeScene(scene);
-    };
+      stream = await navigator.mediaDevices.getUserMedia(
+        options.mediaStreamConstraints ?? { video: true },
+      );
+      this.throwIfAborted(signal);
 
-    /**
-     * Acquire the camera, initialize the {@link VisionEngine}, start the
-     * {@link FrameLoop}, and invoke every managed scene's `onStart` hook.
-     * Any previously running session is destroyed first.
-     */
-    start = async (options: SessionStartOptions): Promise<void> => {
-        this.destroy();
+      this._video.srcObject = stream;
+      await this.waitForVideoData(this._video, signal);
 
-        const startupAbortController = new AbortController();
-        this._startupAbortController = startupAbortController;
-        const { signal } = startupAbortController;
+      monitor?.recordCameraAcquire(performance.now() - cameraStart, includedPermissionPrompt);
 
-        this._video = options.video;
+      this.throwIfAborted(signal);
+      visionEngine = await VisionEngine.create(options.visionEngineOptions, monitor);
+      this.throwIfAborted(signal);
 
-        if (this._autoCleanupOnPageLifecycle) {
-            this.registerLifecycleListeners();
-        }
+      // Commit all acquired resources — only reached if this call won the race.
+      this._stream = stream;
+      stream = null;
+      this._visionEngine = visionEngine;
+      visionEngine = null;
 
-        const monitor = options.performanceMonitor ?? null;
+      let frameLoopOptions: FrameLoopOptions | undefined = options.frameLoopOptions;
 
-        let stream: MediaStream | null = null;
-        let visionEngine: VisionEngine | null = null;
-        try {
-            const includedPermissionPrompt = monitor !== null
-                ? await this.cameraPermissionWillPrompt()
-                : false;
-            this.throwIfAborted(signal);
-            const cameraStart = performance.now();
+      // Create a debugCanvas if required but an existing one was not provided via frameLoopOptions.
+      if (options.debugView && !frameLoopOptions?.debugCanvas) {
+        // Ensure frameLoopOptions exists
+        frameLoopOptions ??= {};
 
-            stream = await navigator.mediaDevices.getUserMedia(
-                options.mediaStreamConstraints ?? { video: true }
-            );
-            this.throwIfAborted(signal);
-
-            this._video.srcObject = stream;
-            await this.waitForVideoData(this._video, signal);
-
-            monitor?.recordCameraAcquire(performance.now() - cameraStart, includedPermissionPrompt);
-
-            this.throwIfAborted(signal);
-            visionEngine = await VisionEngine.create(options.visionEngineOptions, monitor);
-            this.throwIfAborted(signal);
-
-            // Commit all acquired resources — only reached if this call won the race.
-            this._stream = stream;
-            stream = null;
-            this._visionEngine = visionEngine;
-            visionEngine = null;
-
-            let frameLoopOptions: FrameLoopOptions | undefined = options.frameLoopOptions;
-
-            // Create a debugCanvas if required but an existing one was not provided via frameLoopOptions.
-            if (options.debugView && !frameLoopOptions?.debugCanvas) {
-                // Ensure frameLoopOptions exists
-                frameLoopOptions ??= {};
-
-                const debugCanvas: HTMLCanvasElement = document.createElement('canvas');
-                Object.assign(debugCanvas.style, {
-                    position: "absolute",
-                    top: "0",
-                    left: "0",
-                    width: "100%",
-                    height: "100%",
-                    pointerEvents: "none",
-                });
-                this._video.parentElement?.appendChild(debugCanvas);
-                frameLoopOptions.debugCanvas = debugCanvas;
-            }
-
-            this._frameLoop = new FrameLoop(this._visionEngine, frameLoopOptions, monitor);
-            this._sceneManager.addScene(...options.scenes);
-            this._frameLoop.start(this._video, this._sceneManager.updateTrackerAll);
-            this._sceneManager.onStartAll();
-        } catch (error) {
-            visionEngine?.destroy();
-            if (stream) {
-                for (const track of stream.getTracks()) {
-                    track.stop();
-                }
-            }
-            if (this._startupAbortController === startupAbortController) {
-                this.destroy();
-            }
-            throw error;
-        } finally {
-            if (this._startupAbortController === startupAbortController) {
-                this._startupAbortController = null;
-            }
-        }
-    };
-
-    /**
-     * Stop rendering and release all session-owned resources.
-     * Safe to call multiple times.
-     */
-    destroy = (): void => {
-        this._startupAbortController?.abort();
-        this._startupAbortController = null;
-
-        this._sceneManager.removeAllScenes(); // calls `onStop()` for all active scenes
-
-        this._frameLoop?.destroy();
-        this._frameLoop = null;
-
-        this._visionEngine?.destroy();
-        this._visionEngine = null;
-
-        if (this._stream) {
-            for (const track of this._stream.getTracks()) {
-                track.stop();
-            }
-            this._stream = null;
-        }
-
-        if (this._video && this._video.srcObject) {
-            this._video.srcObject = null;
-        }
-
-        this._video = null;
-
-        this.unregisterLifecycleListeners();
-    };
-
-    private waitForVideoData = async (video: HTMLVideoElement, signal: AbortSignal): Promise<void> => {
-        if (video.readyState >= 2) {
-            return;
-        }
-
-        this.throwIfAborted(signal);
-
-        await new Promise<void>((resolve, reject) => {
-            const onLoadedData = (): void => {
-                cleanup();
-                resolve();
-            };
-            const onError = (): void => {
-                cleanup();
-                reject(new Error("Video element failed to load stream data"));
-            };
-            const onAbort = (): void => {
-                cleanup();
-                reject(new Error("Session start aborted"));
-            };
-
-            const cleanup = (): void => {
-                video.removeEventListener("loadeddata", onLoadedData);
-                video.removeEventListener("error", onError);
-                signal.removeEventListener("abort", onAbort);
-            };
-
-            video.addEventListener("loadeddata", onLoadedData, { once: true });
-            video.addEventListener("error", onError, { once: true });
-            signal.addEventListener("abort", onAbort, { once: true });
+        const debugCanvas: HTMLCanvasElement = document.createElement("canvas");
+        Object.assign(debugCanvas.style, {
+          position: "absolute",
+          top: "0",
+          left: "0",
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
         });
-    };
+        this._video.parentElement?.appendChild(debugCanvas);
+        frameLoopOptions.debugCanvas = debugCanvas;
+      }
 
-    private async cameraPermissionWillPrompt(): Promise<boolean> {
-        // Conservative default: if we cannot determine state, assume the call
-        // may prompt so consumers do not treat the number as pure machine time.
-        if (!navigator.permissions?.query) {
-            return true;
+      this._frameLoop = new FrameLoop(this._visionEngine, frameLoopOptions, monitor);
+      this._sceneManager.addScene(...options.scenes);
+      this._frameLoop.start(this._video, this._sceneManager.updateTrackerAll);
+      this._sceneManager.onStartAll();
+    } catch (error) {
+      visionEngine?.destroy();
+      if (stream) {
+        for (const track of stream.getTracks()) {
+          track.stop();
         }
-        try {
-            const status = await navigator.permissions.query({ name: "camera" as PermissionName });
-            return status.state !== "granted";
-        } catch {
-            return true;
-        }
+      }
+      if (this._startupAbortController === startupAbortController) {
+        this.destroy();
+      }
+      throw error;
+    } finally {
+      if (this._startupAbortController === startupAbortController) {
+        this._startupAbortController = null;
+      }
+    }
+  };
+
+  /**
+   * Stop rendering and release all session-owned resources.
+   * Safe to call multiple times.
+   */
+  destroy = (): void => {
+    this._startupAbortController?.abort();
+    this._startupAbortController = null;
+
+    this._sceneManager.removeAllScenes(); // calls `onStop()` for all active scenes
+
+    this._frameLoop?.destroy();
+    this._frameLoop = null;
+
+    this._visionEngine?.destroy();
+    this._visionEngine = null;
+
+    if (this._stream) {
+      for (const track of this._stream.getTracks()) {
+        track.stop();
+      }
+      this._stream = null;
     }
 
-    private throwIfAborted(signal: AbortSignal): void {
-        if (signal.aborted) {
-            throw new Error("Session start aborted");
-        }
+    if (this._video && this._video.srcObject) {
+      this._video.srcObject = null;
     }
 
-    private registerLifecycleListeners(): void {
-        if (this._lifecycleListenersRegistered) {
-            return;
-        }
+    this._video = null;
 
-        window.addEventListener("pagehide", this._onPageLifecycle);
-        window.addEventListener("beforeunload", this._onPageLifecycle);
-        this._lifecycleListenersRegistered = true;
+    this.unregisterLifecycleListeners();
+  };
+
+  private waitForVideoData = async (
+    video: HTMLVideoElement,
+    signal: AbortSignal,
+  ): Promise<void> => {
+    if (video.readyState >= 2) {
+      return;
     }
 
-    private unregisterLifecycleListeners(): void {
-        if (!this._lifecycleListenersRegistered) {
-            return;
-        }
+    this.throwIfAborted(signal);
 
-        window.removeEventListener("pagehide", this._onPageLifecycle);
-        window.removeEventListener("beforeunload", this._onPageLifecycle);
-        this._lifecycleListenersRegistered = false;
+    await new Promise<void>((resolve, reject) => {
+      const onLoadedData = (): void => {
+        cleanup();
+        resolve();
+      };
+      const onError = (): void => {
+        cleanup();
+        reject(new Error("Video element failed to load stream data"));
+      };
+      const onAbort = (): void => {
+        cleanup();
+        reject(new Error("Session start aborted"));
+      };
+
+      const cleanup = (): void => {
+        video.removeEventListener("loadeddata", onLoadedData);
+        video.removeEventListener("error", onError);
+        signal.removeEventListener("abort", onAbort);
+      };
+
+      video.addEventListener("loadeddata", onLoadedData, { once: true });
+      video.addEventListener("error", onError, { once: true });
+      signal.addEventListener("abort", onAbort, { once: true });
+    });
+  };
+
+  private async cameraPermissionWillPrompt(): Promise<boolean> {
+    // Conservative default: if we cannot determine state, assume the call
+    // may prompt so consumers do not treat the number as pure machine time.
+    if (!navigator.permissions?.query) {
+      return true;
     }
+    try {
+      const status = await navigator.permissions.query({
+        name: "camera" as PermissionName,
+      });
+      return status.state !== "granted";
+    } catch {
+      return true;
+    }
+  }
+
+  private throwIfAborted(signal: AbortSignal): void {
+    if (signal.aborted) {
+      throw new Error("Session start aborted");
+    }
+  }
+
+  private registerLifecycleListeners(): void {
+    if (this._lifecycleListenersRegistered) {
+      return;
+    }
+
+    window.addEventListener("pagehide", this._onPageLifecycle);
+    window.addEventListener("beforeunload", this._onPageLifecycle);
+    this._lifecycleListenersRegistered = true;
+  }
+
+  private unregisterLifecycleListeners(): void {
+    if (!this._lifecycleListenersRegistered) {
+      return;
+    }
+
+    window.removeEventListener("pagehide", this._onPageLifecycle);
+    window.removeEventListener("beforeunload", this._onPageLifecycle);
+    this._lifecycleListenersRegistered = false;
+  }
 }
