@@ -139,9 +139,9 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # Custom - Specific to this project
-notes/
-.vscode/
-.claude/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 
 .npmrc
