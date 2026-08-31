@@ -1,6 +1,6 @@
 {
   "name": "krida",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "An engine for building interactive experiences with real-time camera-based tracking.",
   "author": "Elvis Dsouza",
   "license": "MIT",
