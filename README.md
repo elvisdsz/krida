@@ -1,5 +1,6 @@
 # Krida
 
+[![CI](https://img.shields.io/github/actions/workflow/status/elvisdsz/krida/ci.yml?branch=main&label=CI)](https://github.com/elvisdsz/krida/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/krida.svg)](https://www.npmjs.com/package/krida)
 [![license](https://img.shields.io/npm/l/krida.svg)](LICENSE)
 
