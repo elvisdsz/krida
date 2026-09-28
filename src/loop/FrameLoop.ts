@@ -38,7 +38,8 @@ export interface FrameLoopOptions {
  * const visionEngine = await VisionEngine.create({ handLandmarkerEnabled: true, ... });
  *
  * const loop = new FrameLoop(visionEngine, { targetFPS: 24 });
- * loop.start(videoElement, (trackerResult) => { console.log(trackerResult); });
+ * loop.bind(videoElement, (trackerResult) => { console.log(trackerResult); });
+ * loop.start();
  *
  * // Later:
  * loop.destroy();
@@ -46,6 +47,7 @@ export interface FrameLoopOptions {
  * ```
  */
 export class FrameLoop {
+  private _video: HTMLVideoElement | null = null;
   private _frameId: number | null = null;
   private _lastFrameTime: number = 0;
   private _lastVideoTime: number = -1;
@@ -71,30 +73,46 @@ export class FrameLoop {
   }
 
   /**
-   * Start the frame loop.
-   * Automatically stops any previously running loop before starting.
+   * Bind the video and result callback, replacing any previous binding. Stops a
+   * running loop, so call {@link start} afterwards to resume, or drive it with
+   * {@link update}.
    *
    * @param video     The `<video>` element providing the webcam stream.
-   * @param callback  Receives the {@link TrackerResult} for every processed frame.
+   * @param onResult  Receives the {@link TrackerResult} for every processed frame.
    */
-  start(video: HTMLVideoElement, callback?: (trackerResult: TrackerResult) => void): void {
-    this.stop();
+  bind(video: HTMLVideoElement, onResult?: (result: TrackerResult) => void): void {
+    this.unbind();
+    this._video = video;
+    this._trackerCallback = onResult ?? null;
     this._lastFrameTime = 0;
     this._lastVideoTime = -1;
     this._lastAcceptedFrameTime = 0;
-    if (callback) {
-      this._trackerCallback = callback;
-    }
     this._abortController = new AbortController();
 
     if (this._debugCanvasCtx) {
       fitCanvasToVideo(this._debugCanvasCtx.canvas, video, this._abortController.signal);
     }
+  }
+
+  /**
+   * Start the frame loop.
+   * Has no effect when called on an already running loop.
+   *
+   * @throws If the loop isn't yet configured using `bind`.
+   */
+  start(): void {
+    if (this._frameId !== null) {
+      return;
+    }
+
+    if (this._video === null) {
+      throw new Error("FrameLoop cannot be started without being configured first.");
+    }
 
     const makeFrame = (currentTime: number) => {
       const delta = currentTime - this._lastFrameTime;
       if (this._frameInterval == null || delta >= this._frameInterval) {
-        this.processFrame(video, currentTime);
+        this.update(currentTime);
         this._lastFrameTime = currentTime;
       }
       this._frameId = requestAnimationFrame(makeFrame);
@@ -104,21 +122,29 @@ export class FrameLoop {
   }
 
   /**
+   * Process at most one new video frame and return its {@link TrackerResult}, or
+   * `null` if the loop isn't bound or the video hasn't advanced. Ignores `targetFPS`.
+   *
+   * @param timestampMs  Frame time in ms. Should be monotonic, in the `performance.now()`
+   * timebase. Default: `performance.now()`.
+   */
+  update(timestampMs = performance.now()): TrackerResult | null {
+    if (this._video === null) {
+      return null;
+    }
+    return this.processFrame(this._video, timestampMs);
+  }
+
+  /**
    * Stop the frame loop. Safe to call when already stopped.
    *
-   * Clears the tracker callback. The loop is safe to restart via
-   * {@link start} afterwards, but the callback must be passed again.
+   * Keeps the bound video and tracker callback, so {@link start} resumes the loop.
    */
   stop(): void {
     if (this._frameId !== null) {
       cancelAnimationFrame(this._frameId);
       this._frameId = null;
     }
-
-    this._abortController?.abort();
-    this._abortController = null;
-    this._trackerCallback = null;
-    this._drawingUtils = null;
   }
 
   /**
@@ -126,7 +152,7 @@ export class FrameLoop {
    * Does not destroy the engine so shared engine instances can outlive the loop.
    */
   destroy(): void {
-    this.stop();
+    this.unbind();
     this._lastFrameTime = 0;
     this._lastVideoTime = -1;
     this._lastAcceptedFrameTime = 0;
@@ -149,9 +175,20 @@ export class FrameLoop {
 
   // ── Private helpers ──────────────────────────────────────────────────────
 
-  private processFrame(video: HTMLVideoElement, currentTime: number): void {
+  private unbind(): void {
+    this.stop();
+    this._abortController?.abort();
+    this._abortController = null;
+    this._trackerCallback = null;
+    this._drawingUtils = null;
+    this._video = null;
+  }
+
+  private processFrame(video: HTMLVideoElement, currentTime: number): TrackerResult | null {
     // Skip if the video hasn't advanced to a new frame
-    if (this._lastVideoTime === video.currentTime) return;
+    if (this._lastVideoTime === video.currentTime) {
+      return null;
+    }
     this._lastVideoTime = video.currentTime;
 
     if (this._lastAcceptedFrameTime > 0) {
@@ -159,11 +196,9 @@ export class FrameLoop {
     }
     this._lastAcceptedFrameTime = currentTime;
 
-    const frameStart = performance.now();
-
     const trackerResult: TrackerResult = this._visionEngine.getTrackerResult(
       video,
-      frameStart,
+      currentTime,
       this._monitor,
     );
 
@@ -182,6 +217,8 @@ export class FrameLoop {
         this.drawDebugFrame(this._debugCanvasCtx, trackerResult);
       }
     }
+
+    return trackerResult;
   }
 
   private drawDebugFrame(ctx: CanvasRenderingContext2D, result: TrackerResult): void {

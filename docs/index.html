@@ -279,8 +279,9 @@ await session.start({
       Both may be <code>undefined</code> if the respective tracker is disabled.
     </p>
     <p>
-      <code>updateTracker()</code> fires at most once per camera frame (frames where the video has
-      not advanced are skipped) and never more often than the loop's <code>targetFPS</code>.
+      <code>updateTracker()</code> fires at most once per camera frame; frames where the video has
+      not advanced are skipped. In looped mode, updates also respect the loop's
+      <code>targetFPS</code>.
     </p>
 
     <hr />
@@ -291,7 +292,8 @@ session.start(options: SessionStartOptions): Promise&lt;void&gt;
 session.destroy(): void
 session.addScene(...scenes: Scene[]): void
 session.removeScene(scene: Scene): boolean
-session.isRunning: boolean</code></pre>
+session.update(timestampMs?: number): TrackerResult | null
+session.isActive: boolean</code></pre>
     <p>
       <code>SessionOptions.autoCleanupOnPageLifecycle</code> (default: <code>true</code>)
       automatically calls <code>destroy()</code> when the page is hidden or unloaded.
@@ -302,8 +304,17 @@ session.isRunning: boolean</code></pre>
         <code>video</code> — the <code>&lt;video&gt;</code> element that receives webcam frames
         (required)
       </li>
-      <li><code>scenes</code> — array of <code>Scene</code> instances to drive (required)</li>
+      <li>
+        <code>scenes</code> — array of <code>Scene</code> instances to drive (can be omitted, e.g.
+        to use the result returned by <code>session.update()</code> instead, or to add scenes later
+        via <code>addScene()</code>)
+      </li>
       <li><code>visionEngineOptions</code> — engine initialization options (required)</li>
+      <li>
+        <code>frameMode</code> — <code>"looped"</code> (default) lets the session schedule updates
+        with <code>requestAnimationFrame</code>; <code>"manual"</code> lets the host schedule
+        updates by calling <code>session.update()</code>
+      </li>
       <li>
         <code>frameLoopOptions</code> — options forwarded to the internal
         <code>FrameLoop</code>
@@ -322,7 +333,13 @@ session.isRunning: boolean</code></pre>
       </li>
     </ul>
     <p>
-      <code>addScene()</code> throws if the session is not running; pass scenes via
+      Use <code>frameMode: "manual"</code> when another render loop owns scheduling. Call
+      <code>session.update(timestampMs)</code> from that loop; it processes at most one new video
+      frame and returns <code>null</code> when no new video frame is available. It throws if the
+      session is not active or <code>frameMode</code> is not <code>"manual"</code>.
+    </p>
+    <p>
+      <code>addScene()</code> throws if the session is not active; pass scenes via
       <code>start()</code> instead of adding them beforehand. <code>destroy()</code> is safe to call
       multiple times and calls <code>onStop()</code> on every active scene.
     </p>
@@ -378,7 +395,9 @@ session.isRunning: boolean</code></pre>
 
     <h3>FrameLoop</h3>
     <pre><code>new FrameLoop(visionEngine, options?: FrameLoopOptions, monitor?: PerformanceMonitor | null)
-loop.start(video: HTMLVideoElement, callback?: (result: TrackerResult) =&gt; void): void
+loop.bind(video: HTMLVideoElement, onResult?: (result: TrackerResult) =&gt; void): void
+loop.start(): void
+loop.update(timestampMs?: number): TrackerResult | null
 loop.stop(): void
 loop.destroy(): void
 loop.debugCanvas: HTMLCanvasElement | null   // setter only
@@ -386,8 +405,8 @@ loop.isRunning: boolean</code></pre>
     <p><code>FrameLoopOptions</code>:</p>
     <ul>
       <li>
-        <code>targetFPS</code> — cap the frame processing rate; <code>null</code> for uncapped
-        (default: <code>30</code>)
+        <code>targetFPS</code> — cap the frame processing rate in the internally looped mode;
+        <code>null</code> for uncapped (default: <code>30</code>)
       </li>
       <li>
         <code>debugCanvas</code> — canvas to draw landmark connections, dots, and index labels onto
@@ -395,9 +414,11 @@ loop.isRunning: boolean</code></pre>
       </li>
     </ul>
     <p>
-      <code>stop()</code> clears the tracker callback, so pass it again when restarting via
-      <code>start()</code>. <code>destroy()</code> stops the loop but leaves the
-      <code>VisionEngine</code> intact, so a shared engine can outlive the loop.
+      Call <code>bind()</code> before <code>start()</code>, or call <code>update()</code> to process
+      frames from an external scheduler. <code>stop()</code> keeps the binding, so
+      <code>start()</code> resumes the loop. <code>destroy()</code> stops the loop and releases the
+      binding but leaves the <code>VisionEngine</code> intact, so a shared engine can outlive the
+      loop.
     </p>
     <p>
       Prefer <code>debugView: true</code> on <code>session.start()</code> unless you want to supply

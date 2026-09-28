@@ -10,7 +10,7 @@ export { FrameLoop } from "./loop/FrameLoop";
 export type { FrameLoopOptions } from "./loop/FrameLoop";
 
 export { Session } from "./runtime/Session";
-export type { SessionOptions, SessionStartOptions } from "./runtime/Session";
+export type { SessionOptions, SessionFrameMode, SessionStartOptions } from "./runtime/Session";
 
 export type { Scene } from "./scene/Scene";
 

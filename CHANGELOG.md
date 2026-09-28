@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Breaking
+
+- `FrameLoop.start(video, callback)` is split into `bind(video, onResult?)` and `start()`. `start()` throws if the loop has not been bound. `stop()` keeps the binding, so `start()` resumes the loop, while `destroy()` releases it.
+- `Session.isRunning` is replaced by `Session.isActive`.
+
+### Added
+
+- `frameMode` option on `Session.start()`: `"looped"` (default) or `"manual"`, where the host schedules updates.
+- `Session.update(timestampMs?)` and `FrameLoop.update(timestampMs?)` process at most one new video frame and return the `TrackerResult`, or `null` if the video has not advanced.
+- `scenes` is now optional on `Session.start()`.
+- `SessionFrameMode` type export.
+
+### Fixed
+
+- `Session.destroy()` removes the debug overlay canvas it created, and `start()` no longer mutates the caller's `frameLoopOptions`.
+
 ## 0.2.0 - 2026-08-31
 
 Substantial API rework. Breaking for anyone on 0.1.0.
