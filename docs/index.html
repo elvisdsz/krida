@@ -251,7 +251,7 @@ await session.start({
     </p>
     <p>
       <strong><code>Session</code></strong> — top-level orchestrator. Acquires the webcam,
-      initializes <code>VisionEngine</code> and <code>FrameLoop</code>, forwards each frame's
+      initializes <code>VisionEngine</code> and <code>FrameProcessor</code>, forwards each frame's
       results to every managed scene, and manages cleanup on page hide/unload.
     </p>
     <p>
@@ -260,9 +260,9 @@ await session.start({
       gesture detectors.
     </p>
     <p>
-      <strong><code>FrameLoop</code></strong> — <code>requestAnimationFrame</code> loop that polls
-      the engine and hands each <code>TrackerResult</code> to its callback. Supports a configurable
-      FPS cap and an optional debug overlay canvas.
+      <strong><code>FrameProcessor</code></strong> — passes video frames to the engine and hands
+      each <code>TrackerResult</code> to its callback, in a loop or on demand via
+      <code>update()</code>. Supports an FPS cap for the loop and an optional debug overlay canvas.
     </p>
 
     <h2>API Reference</h2>
@@ -316,8 +316,8 @@ session.isActive: boolean</code></pre>
         updates by calling <code>session.update()</code>
       </li>
       <li>
-        <code>frameLoopOptions</code> — options forwarded to the internal
-        <code>FrameLoop</code>
+        <code>frameProcessorOptions</code> — options forwarded to the internal
+        <code>FrameProcessor</code>
       </li>
       <li>
         <code>debugView</code> — <code>true</code> to overlay landmark connections and labels
@@ -393,20 +393,21 @@ session.isActive: boolean</code></pre>
 
     <hr />
 
-    <h3>FrameLoop</h3>
-    <pre><code>new FrameLoop(visionEngine, options?: FrameLoopOptions, monitor?: PerformanceMonitor | null)
-loop.bind(video: HTMLVideoElement, onResult?: (result: TrackerResult) =&gt; void): void
-loop.start(): void
-loop.update(timestampMs?: number): TrackerResult | null
-loop.stop(): void
-loop.destroy(): void
-loop.debugCanvas: HTMLCanvasElement | null   // setter only
-loop.isRunning: boolean</code></pre>
-    <p><code>FrameLoopOptions</code>:</p>
+    <h3>FrameProcessor</h3>
+    <pre><code>new FrameProcessor(visionEngine, options?: FrameProcessorOptions, monitor?: PerformanceMonitor | null)
+processor.bind(video: HTMLVideoElement, onResult?: (result: TrackerResult) =&gt; void): void
+processor.startLoop(): void
+processor.update(timestampMs?: number): TrackerResult | null
+processor.stopLoop(): void
+processor.destroy(): void
+processor.debugCanvas: HTMLCanvasElement | null   // setter only
+processor.isLooping: boolean</code></pre>
+    <p><code>FrameProcessorOptions</code>:</p>
     <ul>
       <li>
-        <code>targetFPS</code> — cap the frame processing rate in the internally looped mode;
-        <code>null</code> for uncapped (default: <code>30</code>)
+        <code>targetFPS</code> — cap the frame processing rate of the loop started by
+        <code>startLoop()</code>; ignored by <code>update()</code>. <code>null</code> for uncapped
+        (default: <code>30</code>)
       </li>
       <li>
         <code>debugCanvas</code> — canvas to draw landmark connections, dots, and index labels onto
@@ -414,11 +415,11 @@ loop.isRunning: boolean</code></pre>
       </li>
     </ul>
     <p>
-      Call <code>bind()</code> before <code>start()</code>, or call <code>update()</code> to process
-      frames from an external scheduler. <code>stop()</code> keeps the binding, so
-      <code>start()</code> resumes the loop. <code>destroy()</code> stops the loop and releases the
-      binding but leaves the <code>VisionEngine</code> intact, so a shared engine can outlive the
-      loop.
+      Call <code>bind()</code> before <code>startLoop()</code>, or call <code>update()</code> to
+      process frames from an external scheduler. <code>stopLoop()</code> keeps the binding, so
+      <code>startLoop()</code> resumes the loop. <code>destroy()</code> stops the loop and releases
+      the binding but leaves the <code>VisionEngine</code> intact, so a shared engine can outlive
+      the processor.
     </p>
     <p>
       Prefer <code>debugView: true</code> on <code>session.start()</code> unless you want to supply

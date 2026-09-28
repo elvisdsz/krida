@@ -73,11 +73,11 @@ Krida runs in the browser and uses `getUserMedia()`, so camera access requires a
 
 **`Scene`** — the interface you implement. Provide an `updateTracker(trackerResult)` method called once per processed frame, and optional `onStart` / `onStop` lifecycle hooks. A session can run several scenes at once.
 
-**`Session`** — top-level orchestrator. Acquires the webcam, initializes `VisionEngine` and `FrameLoop`, forwards each frame's results to every managed scene, and manages cleanup on page hide/unload.
+**`Session`** — top-level orchestrator. Acquires the webcam, initializes `VisionEngine` and `FrameProcessor`, forwards each frame's results to every managed scene, and manages cleanup on page hide/unload.
 
 **`VisionEngine`** — runs tracking inference each frame, caches per-frame results, smooths landmark output via built-in filtering, and applies any configured gesture detectors.
 
-**`FrameLoop`** — `requestAnimationFrame` loop that polls the engine and hands each `TrackerResult` to its callback. Supports a configurable FPS cap and an optional debug overlay canvas.
+**`FrameProcessor`** — passes video frames to the engine and hands each `TrackerResult` to its callback, in a loop or on demand via `update()`. Supports an FPS cap for the loop and an optional debug overlay canvas.
 
 ## API Reference
 
@@ -117,7 +117,7 @@ session.isActive: boolean
 - `scenes` — array of `Scene` instances to drive (can be omitted, e.g. to use the result returned by `session.update()` instead, or to add scenes later via `addScene()`)
 - `visionEngineOptions` — engine initialization options (required)
 - `frameMode` — `"looped"` (default) lets the session schedule updates with `requestAnimationFrame`; `"manual"` lets the host schedule updates by calling `session.update()`
-- `frameLoopOptions` — options forwarded to the internal `FrameLoop`
+- `frameProcessorOptions` — options forwarded to the internal `FrameProcessor`
 - `debugView` — `true` to overlay landmark connections and labels (default: `false`)
 - `mediaStreamConstraints` — constraints for `getUserMedia` (default: `{ video: true }`)
 - `performanceMonitor` — a `PerformanceMonitor` to receive session and per-frame metrics
@@ -148,25 +148,25 @@ Defaults are exported as `VisionEngineDefaults`.
 
 ---
 
-### FrameLoop
+### FrameProcessor
 
 ```ts
-new FrameLoop(visionEngine, options?: FrameLoopOptions, monitor?: PerformanceMonitor | null)
-loop.bind(video: HTMLVideoElement, onResult?: (result: TrackerResult) => void): void
-loop.start(): void
-loop.update(timestampMs?: number): TrackerResult | null
-loop.stop(): void
-loop.destroy(): void
-loop.debugCanvas: HTMLCanvasElement | null   // setter only
-loop.isRunning: boolean
+new FrameProcessor(visionEngine, options?: FrameProcessorOptions, monitor?: PerformanceMonitor | null)
+processor.bind(video: HTMLVideoElement, onResult?: (result: TrackerResult) => void): void
+processor.startLoop(): void
+processor.update(timestampMs?: number): TrackerResult | null
+processor.stopLoop(): void
+processor.destroy(): void
+processor.debugCanvas: HTMLCanvasElement | null   // setter only
+processor.isLooping: boolean
 ```
 
-`FrameLoopOptions`:
+`FrameProcessorOptions`:
 
-- `targetFPS` — cap the frame processing rate in the internally looped mode; `null` for uncapped (default: `30`)
+- `targetFPS` — cap the frame processing rate of the loop started by `startLoop()`; ignored by `update()`. `null` for uncapped (default: `30`)
 - `debugCanvas` — canvas to draw landmark connections, dots, and index labels onto (default: `null`, disabled)
 
-Call `bind()` before `start()`, or call `update()` to process frames from an external scheduler. `stop()` keeps the binding, so `start()` resumes the loop. `destroy()` stops the loop and releases the binding but leaves the `VisionEngine` intact, so a shared engine can outlive the loop.
+Call `bind()` before `startLoop()`, or call `update()` to process frames from an external scheduler. `stopLoop()` keeps the binding, so `startLoop()` resumes the loop. `destroy()` stops the loop and releases the binding but leaves the `VisionEngine` intact, so a shared engine can outlive the processor.
 
 Prefer `debugView: true` on `session.start()` unless you want to supply and position the overlay canvas yourself.
 

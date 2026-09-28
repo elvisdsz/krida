@@ -4,19 +4,22 @@
 
 ### Breaking
 
-- `FrameLoop.start(video, callback)` is split into `bind(video, onResult?)` and `start()`. `start()` throws if the loop has not been bound. `stop()` keeps the binding, so `start()` resumes the loop, while `destroy()` releases it.
+- `FrameLoop` is renamed `FrameProcessor`, `FrameLoopOptions` to `FrameProcessorOptions`, and the `frameLoopOptions` option on `Session.start()` to `frameProcessorOptions`.
+- `FrameLoop.start(video, callback)` is replaced by `FrameProcessor.bind(video, onResult?)` followed by `FrameProcessor.startLoop()`. `startLoop()` throws if the processor has not been bound.
+- `FrameLoop.stop()` is now `FrameProcessor.stopLoop()`. It keeps the binding, so `startLoop()` resumes the loop, while `destroy()` releases it. Previously `stop()` cleared the callback, which then had to be passed again.
+- `FrameLoop.isRunning` is now `FrameProcessor.isLooping`.
 - `Session.isRunning` is replaced by `Session.isActive`.
 
 ### Added
 
 - `frameMode` option on `Session.start()`: `"looped"` (default) or `"manual"`, where the host schedules updates.
-- `Session.update(timestampMs?)` and `FrameLoop.update(timestampMs?)` process at most one new video frame and return the `TrackerResult`, or `null` if the video has not advanced.
+- `Session.update(timestampMs?)` and `FrameProcessor.update(timestampMs?)` process at most one new video frame and return the `TrackerResult`, or `null` if the video has not advanced.
 - `scenes` is now optional on `Session.start()`.
 - `SessionFrameMode` type export.
 
 ### Fixed
 
-- `Session.destroy()` removes the debug overlay canvas it created, and `start()` no longer mutates the caller's `frameLoopOptions`.
+- `Session.destroy()` removes the debug overlay canvas it created, and `start()` no longer mutates the caller's `frameProcessorOptions`.
 
 ## 0.2.0 - 2026-08-31
 

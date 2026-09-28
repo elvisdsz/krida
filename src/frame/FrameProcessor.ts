@@ -13,7 +13,7 @@ import {
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 import { fitCanvasToVideo } from "../dom/canvas";
 
-export interface FrameLoopOptions {
+export interface FrameProcessorOptions {
   /**
    * Target frames per second. Set to `null` for uncapped rendering.
    * Default: `30`
@@ -27,26 +27,23 @@ export interface FrameLoopOptions {
 }
 
 /**
- * Per-frame timer loop.
- *
- * Drives a `requestAnimationFrame` loop, polls the {@link VisionEngine} for
- * tracking results each frame, and hands each result to the callback passed to
- * {@link start}.
+ * Passes video frames to a {@link VisionEngine} and hands each {@link TrackerResult} to a callback.
+ * Run it in a loop with `startLoop()`, or call `update()` yourself.
  *
  * Usage:
  * ```ts
  * const visionEngine = await VisionEngine.create({ handLandmarkerEnabled: true, ... });
  *
- * const loop = new FrameLoop(visionEngine, { targetFPS: 24 });
- * loop.bind(videoElement, (trackerResult) => { console.log(trackerResult); });
- * loop.start();
+ * const processor = new FrameProcessor(visionEngine, { targetFPS: 24 });
+ * processor.bind(videoElement, (trackerResult) => { console.log(trackerResult); });
+ * processor.startLoop();
  *
  * // Later:
- * loop.destroy();
+ * processor.destroy();
  * visionEngine.destroy();
  * ```
  */
-export class FrameLoop {
+export class FrameProcessor {
   private _video: HTMLVideoElement | null = null;
   private _frameId: number | null = null;
   private _lastFrameTime: number = 0;
@@ -62,7 +59,7 @@ export class FrameLoop {
 
   constructor(
     visionEngine: VisionEngine,
-    options: FrameLoopOptions = {},
+    options: FrameProcessorOptions = {},
     monitor: PerformanceMonitor | null = null,
   ) {
     this._visionEngine = visionEngine;
@@ -73,9 +70,8 @@ export class FrameLoop {
   }
 
   /**
-   * Bind the video and result callback, replacing any previous binding. Stops a
-   * running loop, so call {@link start} afterwards to resume, or drive it with
-   * {@link update}.
+   * Bind the video and result callback, replacing any previous binding. Stops a running loop, so
+   * call {@link startLoop} afterwards to resume, or drive it with {@link update}.
    *
    * @param video     The `<video>` element providing the webcam stream.
    * @param onResult  Receives the {@link TrackerResult} for every processed frame.
@@ -98,15 +94,15 @@ export class FrameLoop {
    * Start the frame loop.
    * Has no effect when called on an already running loop.
    *
-   * @throws If the loop isn't yet configured using `bind`.
+   * @throws If the processor isn't yet configured using `bind`.
    */
-  start(): void {
+  startLoop(): void {
     if (this._frameId !== null) {
       return;
     }
 
     if (this._video === null) {
-      throw new Error("FrameLoop cannot be started without being configured first.");
+      throw new Error("FrameProcessor cannot start its loop without being configured first.");
     }
 
     const makeFrame = (currentTime: number) => {
@@ -122,11 +118,11 @@ export class FrameLoop {
   }
 
   /**
-   * Process at most one new video frame and return its {@link TrackerResult}, or
-   * `null` if the loop isn't bound or the video hasn't advanced. Ignores `targetFPS`.
+   * Process at most one new video frame and return its {@link TrackerResult}, or `null` if the
+   * processor isn't bound or the video hasn't advanced. Ignores `targetFPS`.
    *
-   * @param timestampMs  Frame time in ms. Should be monotonic, in the `performance.now()`
-   * timebase. Default: `performance.now()`.
+   * @param timestampMs  Frame time in ms. Should be monotonic, in the `performance.now()` timebase.
+   * Default: `performance.now()`.
    */
   update(timestampMs = performance.now()): TrackerResult | null {
     if (this._video === null) {
@@ -138,9 +134,9 @@ export class FrameLoop {
   /**
    * Stop the frame loop. Safe to call when already stopped.
    *
-   * Keeps the bound video and tracker callback, so {@link start} resumes the loop.
+   * Keeps the bound video and tracker callback, so {@link startLoop} resumes the loop.
    */
-  stop(): void {
+  stopLoop(): void {
     if (this._frameId !== null) {
       cancelAnimationFrame(this._frameId);
       this._frameId = null;
@@ -148,8 +144,8 @@ export class FrameLoop {
   }
 
   /**
-   * Release loop-owned resources.
-   * Does not destroy the engine so shared engine instances can outlive the loop.
+   * Release processor-owned resources.
+   * Does not destroy the engine so shared engine instances can outlive the processor.
    */
   destroy(): void {
     this.unbind();
@@ -169,14 +165,14 @@ export class FrameLoop {
   }
 
   /** `true` while the loop is running. */
-  get isRunning(): boolean {
+  get isLooping(): boolean {
     return this._frameId !== null;
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────
 
   private unbind(): void {
-    this.stop();
+    this.stopLoop();
     this._abortController?.abort();
     this._abortController = null;
     this._trackerCallback = null;

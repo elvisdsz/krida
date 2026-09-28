@@ -6,8 +6,8 @@ export type {
   TrackerResult,
 } from "./engine/VisionEngine";
 
-export { FrameLoop } from "./loop/FrameLoop";
-export type { FrameLoopOptions } from "./loop/FrameLoop";
+export { FrameProcessor } from "./frame/FrameProcessor";
+export type { FrameProcessorOptions } from "./frame/FrameProcessor";
 
 export { Session } from "./runtime/Session";
 export type { SessionOptions, SessionFrameMode, SessionStartOptions } from "./runtime/Session";

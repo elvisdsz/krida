@@ -25,7 +25,7 @@ export interface Scene {
   /**
    * Optional hook called once when the session has finished starting.
    *
-   * Invoked by `Session.start()` after the camera, engine, and frame loop are
+   * Invoked by `Session.start()` after the camera, engine, and frame processor are
    * all live, immediately before it resolves - or by `Session.addScene()` if the
    * scene is added to an already-running session.
    */
@@ -41,11 +41,10 @@ export interface Scene {
   onStop?(): void;
 
   /**
-   * Called by the active `FrameLoop` once per processed frame.
+   * Called by the active `FrameProcessor` once per processed frame.
    *
-   * Frames where the video has not advanced to a new image are skipped, so this
-   * fires at most once per camera frame and never more often than the loop's
-   * configured `targetFPS`.
+   * Frames where the video has not advanced to a new image are skipped, so this fires at most once
+   * per camera frame. In looped mode it is also limited by `targetFPS`.
    *
    * @param trackerResult Latest tracking results from the engine. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
    */
