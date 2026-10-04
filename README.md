@@ -122,7 +122,7 @@ session.isActive: boolean
 - `mediaStreamConstraints` — constraints for `getUserMedia` (default: `{ video: true }`)
 - `performanceMonitor` — a `PerformanceMonitor` to receive session and per-frame metrics
 
-Use `frameMode: "manual"` when another render loop owns scheduling. Call `session.update(timestampMs)` from that loop; it processes at most one new video frame and returns `null` when no new video frame is available. It throws if the session is not active or `frameMode` is not `"manual"`.
+Use `frameMode: "manual"` when another render loop owns scheduling. Call `session.update(timestampMs)` from that loop; it processes at most one new video frame and returns `null` if the session is not active or no new video frame is available. It throws if the session is active but `frameMode` is not `"manual"`.
 
 `addScene()` throws if the session is not active; pass scenes via `start()` instead of adding them beforehand. `destroy()` is safe to call multiple times and calls `onStop()` on every active scene.
 

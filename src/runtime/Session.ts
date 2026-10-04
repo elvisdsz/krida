@@ -200,14 +200,14 @@ export class Session {
 
   /**
    * Process at most one new video frame, update managed scenes, and return the result, or `null` if
-   * the video hasn't advanced.
+   * the session isn't active or if the video hasn't advanced.
    *
    * @param timestampMs  See {@link FrameProcessor.update}.
-   * @throws If the session is inactive or not in manual mode.
+   * @throws If the session is active but `frameMode` is not `"manual"`.
    */
   update = (timestampMs = performance.now()): TrackerResult | null => {
     if (!this.isActive) {
-      throw new Error("Session is not active - call start() before update()");
+      return null;
     }
     if (this._frameMode !== "manual") {
       throw new Error("Session.update() is only available in manual frame mode");

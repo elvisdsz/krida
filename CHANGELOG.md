@@ -13,7 +13,7 @@
 ### Added
 
 - `frameMode` option on `Session.start()`: `"looped"` (default) or `"manual"`, where the host schedules updates.
-- `Session.update(timestampMs?)` and `FrameProcessor.update(timestampMs?)` process at most one new video frame and return the `TrackerResult`, or `null` if the video has not advanced.
+- `Session.update(timestampMs?)` and `FrameProcessor.update(timestampMs?)` process at most one new video frame and return the `TrackerResult`, or `null` if the video has not advanced. `Session.update()` also returns `null` if the session is not active.
 - `scenes` is now optional on `Session.start()`.
 - `SessionFrameMode` type export.
 

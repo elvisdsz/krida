@@ -335,8 +335,9 @@ session.isActive: boolean</code></pre>
     <p>
       Use <code>frameMode: "manual"</code> when another render loop owns scheduling. Call
       <code>session.update(timestampMs)</code> from that loop; it processes at most one new video
-      frame and returns <code>null</code> when no new video frame is available. It throws if the
-      session is not active or <code>frameMode</code> is not <code>"manual"</code>.
+      frame and returns <code>null</code> if the session is not active or no new video frame is
+      available. It throws if the session is active but <code>frameMode</code> is not
+      <code>"manual"</code>.
     </p>
     <p>
       <code>addScene()</code> throws if the session is not active; pass scenes via
