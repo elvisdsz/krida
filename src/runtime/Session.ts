@@ -1,6 +1,6 @@
 import type { Scene } from "../scene/Scene";
-import { VisionEngine, type VisionEngineOptions } from "../engine/VisionEngine";
-import { FrameLoop, type FrameLoopOptions } from "../loop/FrameLoop";
+import { VisionEngine, type TrackerResult, type VisionEngineOptions } from "../engine/VisionEngine";
+import { FrameProcessor, type FrameProcessorOptions } from "../frame/FrameProcessor";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 import { SceneManager } from "../scene/SceneManager";
 
@@ -9,28 +9,32 @@ export interface SessionOptions {
   autoCleanupOnPageLifecycle?: boolean;
 }
 
+export type SessionFrameMode = "looped" | "manual";
+
 export interface SessionStartOptions {
   /** Video element that receives webcam frames. */
   video: HTMLVideoElement;
-  /** An array of scenes that receives per-frame tracker results. */
-  scenes: Scene[];
+  /** Scenes that receive per-frame tracker results. Can be omitted, e.g. when using `update()`. */
+  scenes?: Scene[];
   /** VisionEngine initialization options. */
   visionEngineOptions: VisionEngineOptions;
-  /** FrameLoop options used to construct FrameLoop. */
-  frameLoopOptions?: FrameLoopOptions;
+  /** `"manual"` leaves scheduling to the host, which calls `update()`. Default: `"looped"`. */
+  frameMode?: SessionFrameMode;
+  /** FrameProcessor options used to construct FrameProcessor. */
+  frameProcessorOptions?: FrameProcessorOptions;
   /** Enable visual debug view. */
   debugView?: boolean;
   /** Media constraints for getUserMedia. Default: { video: true }. */
   mediaStreamConstraints?: MediaStreamConstraints;
   /**
    * Optional performance monitor. Receives session-wide metrics (camera acquire,
-   * engine init) as well as per-frame metrics from the underlying FrameLoop.
+   * engine init) as well as per-frame metrics from the underlying FrameProcessor.
    */
   performanceMonitor?: PerformanceMonitor;
 }
 
 /**
- * High-level session that manages camera, VisionEngine, and FrameLoop lifecycles.
+ * High-level session that manages camera, VisionEngine, and FrameProcessor lifecycles.
  *
  * Usage:
  * ```ts
@@ -50,11 +54,14 @@ export class Session {
   private readonly _sceneManager = new SceneManager();
 
   private _visionEngine: VisionEngine | null = null;
-  private _frameLoop: FrameLoop | null = null;
+  private _frameMode: SessionFrameMode = "looped";
+  private _frameProcessor: FrameProcessor | null = null;
   private _video: HTMLVideoElement | null = null;
   private _stream: MediaStream | null = null;
+  private _ownedDebugCanvas: HTMLCanvasElement | null = null;
   private _startupAbortController: AbortController | null = null;
 
+  private _isStarted: boolean = false;
   private _lifecycleListenersRegistered: boolean = false;
 
   private readonly _onPageLifecycle = (): void => {
@@ -65,22 +72,22 @@ export class Session {
     this._autoCleanupOnPageLifecycle = options.autoCleanupOnPageLifecycle ?? true;
   }
 
-  /** Returns true when a loop exists and is currently running. */
-  get isRunning(): boolean {
-    return this._frameLoop?.isRunning ?? false;
+  /** Returns true if the session is active. */
+  get isActive(): boolean {
+    return this._isStarted;
   }
 
   /**
    * Adds given scene(s) to the scene manager.
    *
-   * Use this method to add a scene dynamically to an already running session.
+   * Use this method to add a scene dynamically to an active session.
    * Otherwise, consider adding scenes by passing them to the `scenes` option in `start()`.
    *
-   * @throws {Error} If called on a Session that isn't running.
+   * @throws {Error} If called on a Session that isn't active.
    */
   addScene = (...scenes: Scene[]): void => {
-    if (!this.isRunning) {
-      throw new Error("Session is not running - call `start()` before `addScene`");
+    if (!this.isActive) {
+      throw new Error("Session is not active - call `start()` before `addScene`");
     }
     this._sceneManager.addScene(...scenes);
   };
@@ -95,9 +102,9 @@ export class Session {
   };
 
   /**
-   * Acquire the camera, initialize the {@link VisionEngine}, start the
-   * {@link FrameLoop}, and invoke every managed scene's `onStart` hook.
-   * Any previously running session is destroyed first.
+   * Acquire the camera, initialize the {@link VisionEngine}, bind the {@link FrameProcessor}
+   * (starting it when `frameMode` is `"looped"`), and invoke every managed scene's `onStart` hook.
+   * If the session is active it is destroyed first.
    */
   start = async (options: SessionStartOptions): Promise<void> => {
     this.destroy();
@@ -113,6 +120,7 @@ export class Session {
     }
 
     const monitor = options.performanceMonitor ?? null;
+    this._frameMode = options.frameMode ?? "looped";
 
     let stream: MediaStream | null = null;
     let visionEngine: VisionEngine | null = null;
@@ -142,13 +150,10 @@ export class Session {
       this._visionEngine = visionEngine;
       visionEngine = null;
 
-      let frameLoopOptions: FrameLoopOptions | undefined = options.frameLoopOptions;
+      let frameProcessorOptions: FrameProcessorOptions | undefined = options.frameProcessorOptions;
 
-      // Create a debugCanvas if required but an existing one was not provided via frameLoopOptions.
-      if (options.debugView && !frameLoopOptions?.debugCanvas) {
-        // Ensure frameLoopOptions exists
-        frameLoopOptions ??= {};
-
+      // Create a debugCanvas if needed and none was provided via frameProcessorOptions.
+      if (options.debugView && !frameProcessorOptions?.debugCanvas) {
         const debugCanvas: HTMLCanvasElement = document.createElement("canvas");
         Object.assign(debugCanvas.style, {
           position: "absolute",
@@ -159,12 +164,21 @@ export class Session {
           pointerEvents: "none",
         });
         this._video.parentElement?.appendChild(debugCanvas);
-        frameLoopOptions.debugCanvas = debugCanvas;
+        // Don't mutate the caller's options: a restart would reuse the removed canvas.
+        frameProcessorOptions = { ...frameProcessorOptions, debugCanvas };
+        this._ownedDebugCanvas = debugCanvas;
       }
 
-      this._frameLoop = new FrameLoop(this._visionEngine, frameLoopOptions, monitor);
-      this._sceneManager.addScene(...options.scenes);
-      this._frameLoop.start(this._video, this._sceneManager.updateTrackerAll);
+      this._frameProcessor = new FrameProcessor(this._visionEngine, frameProcessorOptions, monitor);
+
+      this._sceneManager.addScene(...(options.scenes ?? []));
+
+      this._frameProcessor.bind(this._video, this._sceneManager.updateTrackerAll);
+      if (this._frameMode === "looped") {
+        this._frameProcessor.startLoop();
+      }
+
+      this._isStarted = true;
       this._sceneManager.onStartAll();
     } catch (error) {
       visionEngine?.destroy();
@@ -185,6 +199,24 @@ export class Session {
   };
 
   /**
+   * Process at most one new video frame, update managed scenes, and return the result, or `null` if
+   * the session isn't active or if the video hasn't advanced.
+   *
+   * @param timestampMs  See {@link FrameProcessor.update}.
+   * @throws If the session is active but `frameMode` is not `"manual"`.
+   */
+  update = (timestampMs = performance.now()): TrackerResult | null => {
+    if (!this.isActive) {
+      return null;
+    }
+    if (this._frameMode !== "manual") {
+      throw new Error("Session.update() is only available in manual frame mode");
+    }
+
+    return this._frameProcessor?.update(timestampMs) ?? null;
+  };
+
+  /**
    * Stop rendering and release all session-owned resources.
    * Safe to call multiple times.
    */
@@ -192,13 +224,17 @@ export class Session {
     this._startupAbortController?.abort();
     this._startupAbortController = null;
 
+    this._isStarted = false;
     this._sceneManager.removeAllScenes(); // calls `onStop()` for all active scenes
 
-    this._frameLoop?.destroy();
-    this._frameLoop = null;
+    this._frameProcessor?.destroy();
+    this._frameProcessor = null;
 
     this._visionEngine?.destroy();
     this._visionEngine = null;
+
+    this._ownedDebugCanvas?.remove();
+    this._ownedDebugCanvas = null;
 
     if (this._stream) {
       for (const track of this._stream.getTracks()) {
