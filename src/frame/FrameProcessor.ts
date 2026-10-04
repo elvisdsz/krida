@@ -106,11 +106,7 @@ export class FrameProcessor {
     }
 
     const makeFrame = (currentTime: number) => {
-      const delta = currentTime - this._lastFrameTime;
-      if (this._frameInterval == null || delta >= this._frameInterval) {
-        this.update(currentTime);
-        this._lastFrameTime = currentTime;
-      }
+      this.update(currentTime);
       this._frameId = requestAnimationFrame(makeFrame);
     };
 
@@ -119,7 +115,8 @@ export class FrameProcessor {
 
   /**
    * Process at most one new video frame and return its {@link TrackerResult}, or `null` if the
-   * processor isn't bound or the video hasn't advanced. Ignores `targetFPS`.
+   * processor isn't bound or the video hasn't advanced. A throttled frame when `targetFPS` is set
+   * also returns `null`.
    *
    * @param timestampMs  Frame time in ms. Should be monotonic, in the `performance.now()` timebase.
    * Default: `performance.now()`.
@@ -128,6 +125,10 @@ export class FrameProcessor {
     if (this._video === null) {
       return null;
     }
+    if (this._frameInterval != null && timestampMs - this._lastFrameTime < this._frameInterval) {
+      return null;
+    }
+    this._lastFrameTime = timestampMs;
     return this.processFrame(this._video, timestampMs);
   }
 

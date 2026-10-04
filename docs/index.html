@@ -280,8 +280,7 @@ await session.start({
     </p>
     <p>
       <code>updateTracker()</code> fires at most once per camera frame; frames where the video has
-      not advanced are skipped. In looped mode, updates also respect the loop's
-      <code>targetFPS</code>.
+      not advanced, or arrive faster than <code>targetFPS</code>, are skipped.
     </p>
 
     <hr />
@@ -406,9 +405,8 @@ processor.isLooping: boolean</code></pre>
     <p><code>FrameProcessorOptions</code>:</p>
     <ul>
       <li>
-        <code>targetFPS</code> — cap the frame processing rate of the loop started by
-        <code>startLoop()</code>; ignored by <code>update()</code>. <code>null</code> for uncapped
-        (default: <code>30</code>)
+        <code>targetFPS</code> — cap the frame processing rate for both <code>startLoop()</code> and
+        <code>update()</code>. <code>null</code> for uncapped (default: <code>30</code>)
       </li>
       <li>
         <code>debugCanvas</code> — canvas to draw landmark connections, dots, and index labels onto

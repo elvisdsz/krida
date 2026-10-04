@@ -93,7 +93,7 @@ interface Scene {
 
 `TrackerResult.hand` contains per-hand `landmarks` arrays (normalized `{x, y, z}` points). `TrackerResult.pose` contains pose landmark data. Both may be `undefined` if the respective tracker is disabled.
 
-`updateTracker()` fires at most once per camera frame; frames where the video has not advanced are skipped. In looped mode, updates also respect the loop's `targetFPS`.
+`updateTracker()` fires at most once per camera frame; frames where the video has not advanced, or arrive faster than `targetFPS`, are skipped.
 
 ---
 
@@ -163,7 +163,7 @@ processor.isLooping: boolean
 
 `FrameProcessorOptions`:
 
-- `targetFPS` — cap the frame processing rate of the loop started by `startLoop()`; ignored by `update()`. `null` for uncapped (default: `30`)
+- `targetFPS` — cap the frame processing rate for both `startLoop()` and `update()`. `null` for uncapped (default: `30`)
 - `debugCanvas` — canvas to draw landmark connections, dots, and index labels onto (default: `null`, disabled)
 
 Call `bind()` before `startLoop()`, or call `update()` to process frames from an external scheduler. `stopLoop()` keeps the binding, so `startLoop()` resumes the loop. `destroy()` stops the loop and releases the binding but leaves the `VisionEngine` intact, so a shared engine can outlive the processor.

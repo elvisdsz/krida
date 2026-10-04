@@ -43,8 +43,8 @@ export interface Scene {
   /**
    * Called by the active `FrameProcessor` once per processed frame.
    *
-   * Frames where the video has not advanced to a new image are skipped, so this fires at most once
-   * per camera frame. In looped mode it is also limited by `targetFPS`.
+   * Frames where the video has not advanced to a new image, or arrive faster than `targetFPS`, are
+   * skipped, so this fires at most once per camera frame.
    *
    * @param trackerResult Latest tracking results from the engine. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
    */
