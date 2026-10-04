@@ -339,6 +339,12 @@ session.isActive: boolean</code></pre>
       <code>"manual"</code>.
     </p>
     <p>
+      <code>timestampMs</code> must be in milliseconds and monotonic.
+      <code>performance.now()</code> and a <code>requestAnimationFrame</code> callback's timestamp
+      work. A seconds-based elapsed-time value, such as three.js's
+      <code>Clock.getElapsedTime()</code>, does not.
+    </p>
+    <p>
       <code>addScene()</code> throws if the session is not active; pass scenes via
       <code>start()</code> instead of adding them beforehand. <code>destroy()</code> is safe to call
       multiple times and calls <code>onStop()</code> on every active scene.
