@@ -33,6 +33,12 @@
     }
   },
   "sideEffects": false,
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=24"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -44,7 +50,7 @@
     "prepublishOnly": "tsc --noEmit && tsup"
   },
   "devDependencies": {
-    "@types/node": "^25.3.0",
+    "@types/node": "^24.19.4",
     "prettier": "3.9.6",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
