@@ -173,7 +173,7 @@ export class Session {
 
       this._sceneManager.addScene(...(options.scenes ?? []));
 
-      this._frameProcessor.bind(this._video, this._sceneManager.updateTrackerAll);
+      this._frameProcessor.bind(this._video, this._sceneManager.onFrameAll);
       if (this._frameMode === "looped") {
         this._frameProcessor.startLoop();
       }

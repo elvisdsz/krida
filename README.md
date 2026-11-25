@@ -10,7 +10,7 @@ An engine for building interactive experiences with real-time camera-based track
 
 ## Overview
 
-Implement `Scene`, pass a `<video>` element to `Session`, and receive per-frame tracking data in your `updateTracker()` callback. Session manages webcam setup, model loading, and cleanup. Tracking currently runs on MediaPipe models; additional backend support is planned.
+Implement `Scene`, pass a `<video>` element to `Session`, and receive per-frame tracking data in your `onFrame()` callback. Session manages webcam setup, model loading, and cleanup. Tracking currently runs on MediaPipe models; additional backend support is planned.
 
 ## Installation
 
@@ -35,7 +35,7 @@ fitCanvasToVideo(canvas, video);
 
 // Define a scene.
 const pointerScene: Scene = {
-  updateTracker(result: FrameResult) {
+  onFrame(result: FrameResult) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     for (const hand of result.hand?.landmarks ?? []) {
       const tip = hand[8]; // index finger tip
@@ -71,7 +71,7 @@ Krida runs in the browser and uses `getUserMedia()`, so camera access requires a
 
 ## Core Concepts
 
-**`Scene`** — the interface you implement. Provide an `updateTracker(frameResult)` method called once per processed frame, and optional `onStart` / `onStop` lifecycle hooks. A session can run several scenes at once.
+**`Scene`** — the interface you implement. Provide an `onFrame(frameResult)` method called once per processed frame, and optional `onStart` / `onStop` lifecycle hooks. A session can run several scenes at once.
 
 **`Session`** — top-level orchestrator. Acquires the webcam, initializes `VisionEngine` and `FrameProcessor`, forwards each frame's results to every managed scene, and manages cleanup on page hide/unload.
 
@@ -85,7 +85,7 @@ Krida runs in the browser and uses `getUserMedia()`, so camera access requires a
 
 ```ts
 interface Scene {
-  updateTracker(result: FrameResult): void;
+  onFrame(result: FrameResult): void;
   onStart?(): void;
   onStop?(): void;
 }
@@ -93,7 +93,7 @@ interface Scene {
 
 `FrameResult.hand` contains per-hand `landmarks` arrays (normalized `{x, y, z}` points). `FrameResult.pose` contains pose landmark data. Both may be `undefined` if the respective tracker is disabled.
 
-`updateTracker()` fires at most once per camera frame; frames where the video has not advanced, or arrive faster than `targetFPS`, are skipped.
+`onFrame()` fires at most once per camera frame; frames where the video has not advanced, or arrive faster than `targetFPS`, are skipped.
 
 ---
 
@@ -189,7 +189,7 @@ await session.start({
 });
 
 // Inside pointerScene:
-updateTracker(result) {
+onFrame(result) {
   const pinch = result.hand?.gestures?.get("pinch");
   if (pinch?.justActivated) {
     console.log("pinched at", pinch.position);

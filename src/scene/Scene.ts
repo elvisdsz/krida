@@ -5,13 +5,13 @@ import type { FrameResult } from "../engine/VisionEngine";
  * A scene can be any object that processes or reacts to tracking results.
  *
  * Implement this interface and pass instances in the `scenes` array to `Session.start()`,
- * which forwards every processed frame's tracking results to each scene's `updateTracker`.
+ * which forwards every processed frame's tracking results to each scene's `onFrame`.
  * @example
  * ```ts
  * class PointerScene implements Scene {
  *     ctx = (document.getElementById("canvas") as HTMLCanvasElement).getContext("2d")!;
  *
- *     updateTracker(result: FrameResult): void {
+ *     onFrame(result: FrameResult): void {
  *         if (!result.hand || result.hand.landmarks.length === 0) return;
  *         const tip = result.hand.landmarks[0][8]; // index finger tip
  *         this.ctx.beginPath();
@@ -48,5 +48,5 @@ export interface Scene {
    *
    * @param frameResult Latest tracking results from the engine. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
    */
-  updateTracker(frameResult: FrameResult): void;
+  onFrame(frameResult: FrameResult): void;
 }

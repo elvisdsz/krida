@@ -9,7 +9,8 @@
 - `FrameLoop.stop()` is now `FrameProcessor.stopLoop()`. It keeps the binding, so `startLoop()` resumes the loop, while `destroy()` releases it. Previously `stop()` cleared the callback, which then had to be passed again.
 - `FrameLoop.isRunning` is now `FrameProcessor.isLooping`.
 - `Session.isRunning` is replaced by `Session.isActive`.
-- `TrackerResult`, the per-frame `{ hand?, pose? }` container passed to `Scene.updateTracker()`, is renamed `FrameResult`. `TrackerResult` is now the base interface shared by `HandTrackerResult` and `PoseTrackerResult`.
+- `Scene.updateTracker()` is renamed `Scene.onFrame()`.
+- `TrackerResult`, the per-frame `{ hand?, pose? }` container passed to `Scene.onFrame()`, is renamed `FrameResult`. `TrackerResult` is now the base interface shared by `HandTrackerResult` and `PoseTrackerResult`.
 - `VisionEngine.getTrackerResult()` is renamed `VisionEngine.getFrameResult()`.
 
 ### Added

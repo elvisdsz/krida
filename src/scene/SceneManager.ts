@@ -76,18 +76,15 @@ export class SceneManager {
     }
   };
 
-  /** Fanout received `frameResult` to every managed scene's `updateTracker()` */
-  updateTrackerAll = (frameResult: FrameResult): void => {
+  /** Fanout received `frameResult` to every managed scene's `onFrame()` */
+  onFrameAll = (frameResult: FrameResult): void => {
     for (const scene of this.#scenes) {
       try {
-        scene.updateTracker(frameResult);
+        scene.onFrame(frameResult);
       } catch (error) {
         if (!this.#failedScenes.has(scene)) {
           this.#failedScenes.add(scene);
-          console.error(
-            "Scene.updateTracker threw (further errors from this scene suppressed):",
-            error,
-          );
+          console.error("Scene.onFrame threw (further errors from this scene suppressed):", error);
         }
       }
     }
