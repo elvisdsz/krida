@@ -1,7 +1,8 @@
+import type { TrackerResult } from "../engine/VisionEngine";
 import { GestureDetector, type GestureState } from "./GestureDetector";
 import { GestureMap } from "./GestureMap";
 
-export class GestureProcessor<TResult extends { startTimeMs: number }> {
+export class GestureProcessor<TResult extends TrackerResult> {
   private gestureDetectors: GestureDetector<TResult>[];
 
   constructor(gestureDetectors: GestureDetector<TResult>[]) {

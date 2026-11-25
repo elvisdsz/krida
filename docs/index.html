@@ -193,7 +193,7 @@
     </blockquote>
 
     <h2>Quick Start</h2>
-    <pre><code>import { Session, fitCanvasToVideo, type Scene, type TrackerResult } from "krida";
+    <pre><code>import { Session, fitCanvasToVideo, type Scene, type FrameResult } from "krida";
 
 // Get references to the HTML elements.
 const video = document.querySelector("video") as HTMLVideoElement;
@@ -205,7 +205,7 @@ fitCanvasToVideo(canvas, video);
 
 // Define a scene.
 const pointerScene: Scene = {
-  updateTracker(result: TrackerResult) {
+  updateTracker(result: FrameResult) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     for (const hand of result.hand?.landmarks ?? []) {
       const tip = hand[8]; // index finger tip
@@ -245,7 +245,7 @@ await session.start({
     <h2>Core Concepts</h2>
     <p>
       <strong><code>Scene</code></strong> — the interface you implement. Provide an
-      <code>updateTracker(trackerResult)</code> method called once per processed frame, and optional
+      <code>updateTracker(frameResult)</code> method called once per processed frame, and optional
       <code>onStart</code> / <code>onStop</code> lifecycle hooks. A session can run several scenes
       at once.
     </p>
@@ -261,7 +261,7 @@ await session.start({
     </p>
     <p>
       <strong><code>FrameProcessor</code></strong> — passes video frames to the engine and hands
-      each <code>TrackerResult</code> to its callback, in a loop or on demand via
+      each <code>FrameResult</code> to its callback, in a loop or on demand via
       <code>update()</code>. Supports an FPS cap for the loop and an optional debug overlay canvas.
     </p>
 
@@ -269,13 +269,13 @@ await session.start({
 
     <h3>Scene Interface</h3>
     <pre><code>interface Scene {
-  updateTracker(result: TrackerResult): void;
+  updateTracker(result: FrameResult): void;
   onStart?(): void;
   onStop?(): void;
 }</code></pre>
     <p>
-      <code>TrackerResult.hand</code> contains per-hand <code>landmarks</code> arrays (normalized
-      <code>{x, y, z}</code> points). <code>TrackerResult.pose</code> contains pose landmark data.
+      <code>FrameResult.hand</code> contains per-hand <code>landmarks</code> arrays (normalized
+      <code>{x, y, z}</code> points). <code>FrameResult.pose</code> contains pose landmark data.
       Both may be <code>undefined</code> if the respective tracker is disabled.
     </p>
     <p>
@@ -291,7 +291,7 @@ session.start(options: SessionStartOptions): Promise&lt;void&gt;
 session.destroy(): void
 session.addScene(...scenes: Scene[]): void
 session.removeScene(scene: Scene): boolean
-session.update(timestampMs?: number): TrackerResult | null
+session.update(timestampMs?: number): FrameResult | null
 session.isActive: boolean</code></pre>
     <p>
       <code>SessionOptions.autoCleanupOnPageLifecycle</code> (default: <code>true</code>)
@@ -401,9 +401,9 @@ session.isActive: boolean</code></pre>
 
     <h3>FrameProcessor</h3>
     <pre><code>new FrameProcessor(visionEngine, options?: FrameProcessorOptions, monitor?: PerformanceMonitor | null)
-processor.bind(video: HTMLVideoElement, onResult?: (result: TrackerResult) =&gt; void): void
+processor.bind(video: HTMLVideoElement, onResult?: (result: FrameResult) =&gt; void): void
 processor.startLoop(): void
-processor.update(timestampMs?: number): TrackerResult | null
+processor.update(timestampMs?: number): FrameResult | null
 processor.stopLoop(): void
 processor.destroy(): void
 processor.debugCanvas: HTMLCanvasElement | null   // setter only

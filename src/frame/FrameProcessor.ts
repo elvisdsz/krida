@@ -8,7 +8,7 @@ import {
   VisionEngine,
   type HandTrackerResult,
   type PoseTrackerResult,
-  type TrackerResult,
+  type FrameResult,
 } from "../engine/VisionEngine";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 import { fitCanvasToVideo } from "../dom/canvas";
@@ -27,7 +27,7 @@ export interface FrameProcessorOptions {
 }
 
 /**
- * Passes video frames to a {@link VisionEngine} and hands each {@link TrackerResult} to a callback.
+ * Passes video frames to a {@link VisionEngine} and hands each {@link FrameResult} to a callback.
  * Run it in a loop with `startLoop()`, or call `update()` yourself.
  *
  * Usage:
@@ -35,7 +35,7 @@ export interface FrameProcessorOptions {
  * const visionEngine = await VisionEngine.create({ handLandmarkerEnabled: true, ... });
  *
  * const processor = new FrameProcessor(visionEngine, { targetFPS: 24 });
- * processor.bind(videoElement, (trackerResult) => { console.log(trackerResult); });
+ * processor.bind(videoElement, (frameResult) => { console.log(frameResult); });
  * processor.startLoop();
  *
  * // Later:
@@ -51,7 +51,7 @@ export class FrameProcessor {
   private readonly _frameInterval: number | null;
   private _debugCanvasCtx: CanvasRenderingContext2D | null = null;
   private _drawingUtils: DrawingUtils | null = null;
-  private _trackerCallback: ((trackerResult: TrackerResult) => void) | null = null;
+  private _resultCallback: ((frameResult: FrameResult) => void) | null = null;
   private readonly _visionEngine: VisionEngine;
   private readonly _monitor: PerformanceMonitor | null;
   private _lastAcceptedFrameTime: number = 0;
@@ -74,12 +74,12 @@ export class FrameProcessor {
    * call {@link startLoop} afterwards to resume, or drive it with {@link update}.
    *
    * @param video     The `<video>` element providing the webcam stream.
-   * @param onResult  Receives the {@link TrackerResult} for every processed frame.
+   * @param onResult  Receives the {@link FrameResult} for every processed frame.
    */
-  bind(video: HTMLVideoElement, onResult?: (result: TrackerResult) => void): void {
+  bind(video: HTMLVideoElement, onResult?: (result: FrameResult) => void): void {
     this.unbind();
     this._video = video;
-    this._trackerCallback = onResult ?? null;
+    this._resultCallback = onResult ?? null;
     this._lastFrameTime = 0;
     this._lastVideoTime = -1;
     this._lastAcceptedFrameTime = 0;
@@ -114,14 +114,14 @@ export class FrameProcessor {
   }
 
   /**
-   * Process at most one new video frame and return its {@link TrackerResult}, or `null` if the
+   * Process at most one new video frame and return its {@link FrameResult}, or `null` if the
    * processor isn't bound or the video hasn't advanced. A throttled frame when `targetFPS` is set
    * also returns `null`.
    *
    * @param timestampMs  Frame time in ms. Should be monotonic, in the `performance.now()` timebase.
    * Default: `performance.now()`.
    */
-  update(timestampMs = performance.now()): TrackerResult | null {
+  update(timestampMs = performance.now()): FrameResult | null {
     if (this._video === null) {
       return null;
     }
@@ -176,12 +176,12 @@ export class FrameProcessor {
     this.stopLoop();
     this._abortController?.abort();
     this._abortController = null;
-    this._trackerCallback = null;
+    this._resultCallback = null;
     this._drawingUtils = null;
     this._video = null;
   }
 
-  private processFrame(video: HTMLVideoElement, currentTime: number): TrackerResult | null {
+  private processFrame(video: HTMLVideoElement, currentTime: number): FrameResult | null {
     // Skip if the video hasn't advanced to a new frame
     if (this._lastVideoTime === video.currentTime) {
       return null;
@@ -193,14 +193,14 @@ export class FrameProcessor {
     }
     this._lastAcceptedFrameTime = currentTime;
 
-    const trackerResult: TrackerResult = this._visionEngine.getTrackerResult(
+    const frameResult: FrameResult = this._visionEngine.getFrameResult(
       video,
       currentTime,
       this._monitor,
     );
 
-    if (this._trackerCallback) {
-      this._trackerCallback(trackerResult);
+    if (this._resultCallback) {
+      this._resultCallback(frameResult);
     }
 
     if (this._debugCanvasCtx) {
@@ -210,15 +210,15 @@ export class FrameProcessor {
         this._debugCanvasCtx.canvas.width,
         this._debugCanvasCtx.canvas.height,
       );
-      if (trackerResult.hand || trackerResult.pose) {
-        this.drawDebugFrame(this._debugCanvasCtx, trackerResult);
+      if (frameResult.hand || frameResult.pose) {
+        this.drawDebugFrame(this._debugCanvasCtx, frameResult);
       }
     }
 
-    return trackerResult;
+    return frameResult;
   }
 
-  private drawDebugFrame(ctx: CanvasRenderingContext2D, result: TrackerResult): void {
+  private drawDebugFrame(ctx: CanvasRenderingContext2D, result: FrameResult): void {
     if (result.hand) {
       this.drawDebugHandsFrame(ctx, result.hand);
     }

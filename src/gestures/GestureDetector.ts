@@ -1,3 +1,5 @@
+import type { TrackerResult } from "../engine/VisionEngine";
+
 export interface GestureState {
   /** Confidence score between 0 and 1 indicating the likelihood that the gesture is currently being performed. */
   readonly confidence: number;
@@ -35,7 +37,7 @@ export interface GestureReading {
   position: { x: number; y: number; z: number } | null;
 }
 
-export abstract class GestureDetector<TResult extends { startTimeMs: number }> {
+export abstract class GestureDetector<TResult extends TrackerResult> {
   readonly name: string;
   private readonly _activateAt: number;
   private readonly _deactivateAt: number;
