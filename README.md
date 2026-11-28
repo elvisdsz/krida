@@ -10,7 +10,7 @@ An engine for building interactive experiences with real-time camera-based track
 
 ## Overview
 
-Implement `Scene`, pass a `<video>` element to `Session`, and receive per-frame tracking data in your `updateTracker()` callback. Session manages webcam setup, model loading, and cleanup. Tracking currently runs on MediaPipe models; additional backend support is planned.
+Implement `Scene`, pass a `<video>` element to `Session`, and receive per-frame tracking data in your `onFrame()` callback. Session manages webcam setup, model loading, and cleanup. Tracking currently runs on MediaPipe models; additional backend support is planned.
 
 ## Installation
 
@@ -23,7 +23,7 @@ npm install krida @mediapipe/tasks-vision
 ## Quick Start
 
 ```ts
-import { Session, fitCanvasToVideo, type Scene, type TrackerResult } from "krida";
+import { Session, fitCanvasToVideo, type Scene, type FrameResult } from "krida";
 
 // Get references to the HTML elements.
 const video = document.querySelector("video") as HTMLVideoElement;
@@ -35,7 +35,7 @@ fitCanvasToVideo(canvas, video);
 
 // Define a scene.
 const pointerScene: Scene = {
-  updateTracker(result: TrackerResult) {
+  onFrame(result: FrameResult) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     for (const hand of result.hand?.landmarks ?? []) {
       const tip = hand[8]; // index finger tip
@@ -71,13 +71,13 @@ Krida runs in the browser and uses `getUserMedia()`, so camera access requires a
 
 ## Core Concepts
 
-**`Scene`** — the interface you implement. Provide an `updateTracker(trackerResult)` method called once per processed frame, and optional `onStart` / `onStop` lifecycle hooks. A session can run several scenes at once.
+**`Scene`** — the interface you implement. Provide an `onFrame(frameResult)` method called once per processed frame, and optional `onStart` / `onStop` lifecycle hooks. A session can run several scenes at once.
 
 **`Session`** — top-level orchestrator. Acquires the webcam, initializes `VisionEngine` and `FrameProcessor`, forwards each frame's results to every managed scene, and manages cleanup on page hide/unload.
 
 **`VisionEngine`** — runs tracking inference each frame, caches per-frame results, smooths landmark output via built-in filtering, and applies any configured gesture detectors.
 
-**`FrameProcessor`** — passes video frames to the engine and hands each `TrackerResult` to its callback, in a loop or on demand via `update()`. Supports an FPS cap for the loop and an optional debug overlay canvas.
+**`FrameProcessor`** — passes video frames to the engine and hands each `FrameResult` to its callback, in a loop or on demand via `update()`. Supports an FPS cap for the loop and an optional debug overlay canvas.
 
 ## API Reference
 
@@ -85,15 +85,15 @@ Krida runs in the browser and uses `getUserMedia()`, so camera access requires a
 
 ```ts
 interface Scene {
-  updateTracker(result: TrackerResult): void;
+  onFrame(result: FrameResult): void;
   onStart?(): void;
   onStop?(): void;
 }
 ```
 
-`TrackerResult.hand` contains per-hand `landmarks` arrays (normalized `{x, y, z}` points). `TrackerResult.pose` contains pose landmark data. Both may be `undefined` if the respective tracker is disabled.
+`FrameResult.hand` contains per-hand `landmarks` arrays (normalized `{x, y, z}` points). `FrameResult.pose` contains pose landmark data. Both may be `undefined` if the respective tracker is disabled.
 
-`updateTracker()` fires at most once per camera frame; frames where the video has not advanced, or arrive faster than `targetFPS`, are skipped.
+`onFrame()` fires at most once per camera frame; frames where the video has not advanced, or arrive faster than `targetFPS`, are skipped.
 
 ---
 
@@ -105,7 +105,7 @@ session.start(options: SessionStartOptions): Promise<void>
 session.destroy(): void
 session.addScene(...scenes: Scene[]): void
 session.removeScene(scene: Scene): boolean
-session.update(timestampMs?: number): TrackerResult | null
+session.update(timestampMs?: number): FrameResult | null
 session.isActive: boolean
 ```
 
@@ -152,9 +152,9 @@ Defaults are exported as `VisionEngineDefaults`.
 
 ```ts
 new FrameProcessor(visionEngine, options?: FrameProcessorOptions, monitor?: PerformanceMonitor | null)
-processor.bind(video: HTMLVideoElement, onResult?: (result: TrackerResult) => void): void
+processor.bind(video: HTMLVideoElement, onResult?: (result: FrameResult) => void): void
 processor.startLoop(): void
-processor.update(timestampMs?: number): TrackerResult | null
+processor.update(timestampMs?: number): FrameResult | null
 processor.stopLoop(): void
 processor.destroy(): void
 processor.debugCanvas: HTMLCanvasElement | null   // setter only
@@ -189,7 +189,7 @@ await session.start({
 });
 
 // Inside pointerScene:
-updateTracker(result) {
+onFrame(result) {
   const pinch = result.hand?.gestures?.get("pinch");
   if (pinch?.justActivated) {
     console.log("pinched at", pinch.position);

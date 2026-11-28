@@ -1,9 +1,10 @@
 export { VisionEngine, VisionEngineDefaults } from "./engine/VisionEngine";
 export type {
   VisionEngineOptions,
+  TrackerResult,
   HandTrackerResult,
   PoseTrackerResult,
-  TrackerResult,
+  FrameResult,
 } from "./engine/VisionEngine";
 
 export { FrameProcessor } from "./frame/FrameProcessor";

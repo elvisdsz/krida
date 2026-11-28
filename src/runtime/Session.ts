@@ -1,5 +1,5 @@
 import type { Scene } from "../scene/Scene";
-import { VisionEngine, type TrackerResult, type VisionEngineOptions } from "../engine/VisionEngine";
+import { VisionEngine, type FrameResult, type VisionEngineOptions } from "../engine/VisionEngine";
 import { FrameProcessor, type FrameProcessorOptions } from "../frame/FrameProcessor";
 import type { PerformanceMonitor } from "../perf/PerformanceMonitor";
 import { SceneManager } from "../scene/SceneManager";
@@ -173,7 +173,7 @@ export class Session {
 
       this._sceneManager.addScene(...(options.scenes ?? []));
 
-      this._frameProcessor.bind(this._video, this._sceneManager.updateTrackerAll);
+      this._frameProcessor.bind(this._video, this._sceneManager.onFrameAll);
       if (this._frameMode === "looped") {
         this._frameProcessor.startLoop();
       }
@@ -205,7 +205,7 @@ export class Session {
    * @param timestampMs  See {@link FrameProcessor.update}.
    * @throws If the session is active but `frameMode` is not `"manual"`.
    */
-  update = (timestampMs = performance.now()): TrackerResult | null => {
+  update = (timestampMs = performance.now()): FrameResult | null => {
     if (!this.isActive) {
       return null;
     }

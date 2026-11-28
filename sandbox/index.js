@@ -28,10 +28,10 @@ const pointerScene = {
   onStop() {
     status.textContent = "Session stopped.";
   },
-  updateTracker(trackerResult) {
+  onFrame(frameResult) {
     this.ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const pinch = trackerResult.hand?.gestures?.get("pinch");
+    const pinch = frameResult.hand?.gestures?.get("pinch");
     if (pinch) {
       const { x, y } = pinch.position ?? { x: 0, y: 0 };
       this.ctx.beginPath();

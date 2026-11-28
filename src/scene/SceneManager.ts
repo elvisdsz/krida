@@ -1,4 +1,4 @@
-import type { TrackerResult } from "../engine/VisionEngine";
+import type { FrameResult } from "../engine/VisionEngine";
 import type { Scene } from "./Scene";
 
 /**
@@ -76,18 +76,15 @@ export class SceneManager {
     }
   };
 
-  /** Fanout received `trackerResult` to every managed scene's `updateTracker()` */
-  updateTrackerAll = (trackerResult: TrackerResult): void => {
+  /** Fanout received `frameResult` to every managed scene's `onFrame()` */
+  onFrameAll = (frameResult: FrameResult): void => {
     for (const scene of this.#scenes) {
       try {
-        scene.updateTracker(trackerResult);
+        scene.onFrame(frameResult);
       } catch (error) {
         if (!this.#failedScenes.has(scene)) {
           this.#failedScenes.add(scene);
-          console.error(
-            "Scene.updateTracker threw (further errors from this scene suppressed):",
-            error,
-          );
+          console.error("Scene.onFrame threw (further errors from this scene suppressed):", error);
         }
       }
     }

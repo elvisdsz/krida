@@ -1,17 +1,17 @@
-import type { TrackerResult } from "../engine/VisionEngine";
+import type { FrameResult } from "../engine/VisionEngine";
 
 /**
  * Contract for an interactive scene.
  * A scene can be any object that processes or reacts to tracking results.
  *
  * Implement this interface and pass instances in the `scenes` array to `Session.start()`,
- * which forwards every processed frame's tracking results to each scene's `updateTracker`.
+ * which forwards every processed frame's tracking results to each scene's `onFrame`.
  * @example
  * ```ts
  * class PointerScene implements Scene {
  *     ctx = (document.getElementById("canvas") as HTMLCanvasElement).getContext("2d")!;
  *
- *     updateTracker(result: TrackerResult): void {
+ *     onFrame(result: FrameResult): void {
  *         if (!result.hand || result.hand.landmarks.length === 0) return;
  *         const tip = result.hand.landmarks[0][8]; // index finger tip
  *         this.ctx.beginPath();
@@ -46,7 +46,7 @@ export interface Scene {
    * Frames where the video has not advanced to a new image, or arrive faster than `targetFPS`, are
    * skipped, so this fires at most once per camera frame.
    *
-   * @param trackerResult Latest tracking results from the engine. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
+   * @param frameResult Latest tracking results from the engine. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
    */
-  updateTracker(trackerResult: TrackerResult): void;
+  onFrame(frameResult: FrameResult): void;
 }

@@ -13,17 +13,16 @@ import { GestureDetector } from "../gestures/GestureDetector";
 import { GestureMap } from "../gestures/GestureMap";
 import { GestureProcessor } from "../gestures/GestureProcessor";
 
-export interface HandTrackerResult extends HandLandmarkerResult {
-  startTimeMs: number;
-  gestures?: GestureMap;
-}
-
-export interface PoseTrackerResult extends PoseLandmarkerResult {
-  startTimeMs: number;
-  gestures?: GestureMap;
-}
-
 export interface TrackerResult {
+  startTimeMs: number;
+  gestures?: GestureMap;
+}
+
+export interface HandTrackerResult extends HandLandmarkerResult, TrackerResult {}
+export interface PoseTrackerResult extends PoseLandmarkerResult, TrackerResult {}
+
+/** Result from processing a single video frame. */
+export interface FrameResult {
   hand?: HandTrackerResult;
   pose?: PoseTrackerResult;
 }
@@ -96,7 +95,7 @@ export class VisionEngine {
    * Create and initialize a new VisionEngine with the given options.
    *
    * Loads the requested MediaPipe models and returns a fully initialized instance
-   * ready for use with {@link getTrackerResult}. The returned instance has no
+   * ready for use with {@link getFrameResult}. The returned instance has no
    * invalid intermediate state — it is either fully ready or this method throws.
    *
    * @throws If neither `handLandmarkerEnabled` nor `poseLandmarkerEnabled` is `true`.
@@ -302,14 +301,14 @@ export class VisionEngine {
    * @returns Tracking result for the frame. `hand` and/or `pose` will be `undefined` if the respective model was not enabled.
    * @throws If called after {@link destroy}; a destroyed engine instance must not be reused.
    */
-  getTrackerResult = (
+  getFrameResult = (
     video: HTMLVideoElement,
     startTimeMs: number,
     performanceMonitor: PerformanceMonitor | null = null,
-  ): TrackerResult => {
+  ): FrameResult => {
     if (this._isDestroyed) {
       throw new Error(
-        "VisionEngine: getTrackerResult called after destroy(). Create a new VisionEngine instance.",
+        "VisionEngine: getFrameResult called after destroy(). Create a new VisionEngine instance.",
       );
     }
 

@@ -4,7 +4,7 @@ Thanks for your interest in contributing. This guide covers local setup and what
 
 ## Prerequisites
 
-- Node.js 24 (matches CI)
+- Node.js 24 (matches CI). With nvm, run `nvm use` to pick it up from `.nvmrc`.
 - npm
 
 ## Setup
